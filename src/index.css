@@ -52,6 +52,25 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-cairo;
+    direction: rtl;
   }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.5) drop-shadow(0 0 10px hsl(45 90% 55%)); }
+}
+
+@keyframes chicken-wobble {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 1.5s ease-in-out infinite;
+}
+
+.animate-chicken-wobble {
+  animation: chicken-wobble 0.5s ease-in-out infinite;
 }
