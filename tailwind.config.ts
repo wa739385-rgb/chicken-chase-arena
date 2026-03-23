@@ -12,8 +12,18 @@ export default {
         "2xl": "1400px",
       },
     },
+    fontFamily: {
+      cairo: ['Cairo', 'sans-serif'],
+    },
     extend: {
       colors: {
+        farm: {
+          green: "hsl(var(--farm-green))",
+          brown: "hsl(var(--farm-brown))",
+          gold: "hsl(var(--farm-gold))",
+          sky: "hsl(var(--farm-sky))",
+          red: "hsl(var(--farm-red))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
