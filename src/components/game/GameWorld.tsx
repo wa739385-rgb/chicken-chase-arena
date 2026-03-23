@@ -2,8 +2,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
-  GameConfig, HudData, PlayerScore,
-  PLAYER_COLORS, PLAYER_NAMES_AR, BASE_POSITIONS,
+  GameConfig, HudData, PlayerScore, AbilityType,
+  PLAYER_COLORS, PLAYER_NAMES_AR, BASE_POSITIONS, TEAM_BASE_POSITIONS,
   ARENA_RADIUS, MAP_EXTENT, BASE_SIZE,
   CHICKEN_CATCH_DIST, BASE_DEPOSIT_DIST,
   MAX_CHICKENS, PLAYER_SPEED,
@@ -23,11 +23,13 @@ interface ChickenState {
   speed: number;
   visible: boolean;
   blinkTimer: number;
+  deposited: boolean; // in a base
+  depositedBase: number; // which base index
 }
 
 interface BotState {
   x: number; z: number;
-  carryingChickenIdx: number; // -1 = none
+  carryingChickenIdx: number;
   score: number;
   frozen: boolean;
   frozenTimer: number;
@@ -57,15 +59,28 @@ function createChicken(type: ChickenType = 'normal'): ChickenState {
     type, carriedBy: -1, active: true,
     speed: type === 'fast' ? 4 : type === 'golden' ? 1.2 : CHICKEN_SPEED_NORMAL,
     visible: true, blinkTimer: 0,
+    deposited: false, depositedBase: -1,
   };
 }
-function createBot(index: number): BotState {
-  const base = BASE_POSITIONS[index + 1];
+function createBot(index: number, mode: string): BotState {
+  const bases = mode === 'teams' ? TEAM_BASE_POSITIONS : BASE_POSITIONS;
+  const baseIdx = mode === 'teams' ? (index < 2 ? 0 : 1) : Math.min(index + 1, bases.length - 1);
+  const base = bases[baseIdx];
   return {
-    x: base[0], z: base[2],
+    x: base[0] + (Math.random() - 0.5) * 2, z: base[2] + (Math.random() - 0.5) * 2,
     carryingChickenIdx: -1, score: 0,
     frozen: false, frozenTimer: 0, facingAngle: 0,
   };
+}
+
+function getBasesForMode(mode: string, botCount: number) {
+  if (mode === 'teams') return TEAM_BASE_POSITIONS;
+  return BASE_POSITIONS.slice(0, botCount + 1);
+}
+
+function getBotBaseIndex(botIndex: number, mode: string): number {
+  if (mode === 'teams') return botIndex < 2 ? 0 : 1;
+  return botIndex + 1;
 }
 
 // ─── 3D Sub-components ───
@@ -73,41 +88,38 @@ function Ground() {
   return (
     <>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <planeGeometry args={[45, 45]} />
+        <planeGeometry args={[55, 55]} />
         <meshStandardMaterial color="#4a8c3f" />
       </mesh>
-      {/* Dirt ring */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <circleGeometry args={[ARENA_RADIUS + 1.5, 32]} />
+        <circleGeometry args={[ARENA_RADIUS + 2, 32]} />
         <meshStandardMaterial color="#9a7030" />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
         <circleGeometry args={[ARENA_RADIUS, 32]} />
         <meshStandardMaterial color="#8B6B28" />
       </mesh>
-      {/* Inner patches */}
       {[...Array(8)].map((_, i) => {
         const a = (i / 8) * Math.PI * 2 + 0.3;
         const r = 3 + Math.random() * 5;
         return (
           <mesh key={i} position={[Math.cos(a) * r, 0.01, Math.sin(a) * r]} rotation={[-Math.PI / 2, a, 0]}>
-            <circleGeometry args={[0.4, 6]} />
+            <circleGeometry args={[0.5, 6]} />
             <meshStandardMaterial color="#6b8e23" transparent opacity={0.4} />
           </mesh>
         );
       })}
-      {/* Trees/bushes around */}
-      {[...Array(10)].map((_, i) => {
-        const a = (i / 10) * Math.PI * 2;
-        const r = ARENA_RADIUS + 4 + Math.random() * 2;
+      {[...Array(12)].map((_, i) => {
+        const a = (i / 12) * Math.PI * 2;
+        const r = ARENA_RADIUS + 5 + Math.random() * 2;
         return (
           <group key={`tree-${i}`} position={[Math.cos(a) * r, 0, Math.sin(a) * r]}>
-            <mesh position={[0, 0.6, 0]}>
-              <sphereGeometry args={[0.8 + Math.random() * 0.4, 8, 8]} />
+            <mesh position={[0, 0.7, 0]}>
+              <sphereGeometry args={[1 + Math.random() * 0.5, 8, 8]} />
               <meshStandardMaterial color={i % 2 === 0 ? '#3a7d32' : '#2d6b28'} />
             </mesh>
             <mesh position={[0, 0.15, 0]}>
-              <cylinderGeometry args={[0.1, 0.12, 0.3, 6]} />
+              <cylinderGeometry args={[0.12, 0.14, 0.3, 6]} />
               <meshStandardMaterial color="#6b4226" />
             </mesh>
           </group>
@@ -117,199 +129,82 @@ function Ground() {
   );
 }
 
-function BaseZone({ position, color }: { position: [number, number, number]; color: string }) {
+function BaseZone({ position, color, depositedCount }: { position: [number, number, number]; color: string; depositedCount: number }) {
+  // Show deposited chickens inside the fence
+  const chickenPositions: [number, number][] = [];
+  for (let i = 0; i < depositedCount; i++) {
+    const row = Math.floor(i / 4);
+    const col = i % 4;
+    chickenPositions.push([
+      -BASE_SIZE * 0.3 + col * (BASE_SIZE * 0.2),
+      -BASE_SIZE * 0.3 + row * (BASE_SIZE * 0.2),
+    ]);
+  }
+
   return (
     <group position={position}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <planeGeometry args={[BASE_SIZE, BASE_SIZE]} />
         <meshStandardMaterial color={color} transparent opacity={0.2} />
       </mesh>
-      {/* Fence */}
+      {/* Fence posts */}
       {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([fx, fz], i) => (
-        <mesh key={i} position={[fx * BASE_SIZE * 0.5, 0.35, fz * BASE_SIZE * 0.5]}>
-          <cylinderGeometry args={[0.06, 0.06, 0.7, 6]} />
+        <mesh key={i} position={[fx * BASE_SIZE * 0.5, 0.4, fz * BASE_SIZE * 0.5]}>
+          <cylinderGeometry args={[0.07, 0.07, 0.8, 6]} />
           <meshStandardMaterial color="#7a4a20" />
         </mesh>
       ))}
+      {/* Fence rails */}
       {[
         [0, -BASE_SIZE * 0.5], [0, BASE_SIZE * 0.5],
         [-BASE_SIZE * 0.5, 0], [BASE_SIZE * 0.5, 0],
       ].map(([fx, fz], i) => (
-        <mesh key={`rail-${i}`} position={[fx, 0.25, fz]} rotation={[0, i >= 2 ? Math.PI / 2 : 0, 0]}>
-          <boxGeometry args={[BASE_SIZE, 0.05, 0.05]} />
+        <mesh key={`rail-${i}`} position={[fx, 0.3, fz]} rotation={[0, i >= 2 ? Math.PI / 2 : 0, 0]}>
+          <boxGeometry args={[BASE_SIZE, 0.06, 0.06]} />
           <meshStandardMaterial color="#a0622d" />
         </mesh>
       ))}
+      {/* Second rail */}
+      {[
+        [0, -BASE_SIZE * 0.5], [0, BASE_SIZE * 0.5],
+        [-BASE_SIZE * 0.5, 0], [BASE_SIZE * 0.5, 0],
+      ].map(([fx, fz], i) => (
+        <mesh key={`rail2-${i}`} position={[fx, 0.55, fz]} rotation={[0, i >= 2 ? Math.PI / 2 : 0, 0]}>
+          <boxGeometry args={[BASE_SIZE, 0.05, 0.05]} />
+          <meshStandardMaterial color="#b5722e" />
+        </mesh>
+      ))}
       {/* Flag */}
-      <mesh position={[0, 0.9, 0]}>
-        <cylinderGeometry args={[0.03, 0.03, 1.2, 6]} />
+      <mesh position={[0, 1.0, 0]}>
+        <cylinderGeometry args={[0.03, 0.03, 1.4, 6]} />
         <meshStandardMaterial color="#5a3a1a" />
       </mesh>
-      <mesh position={[0.2, 1.3, 0]}>
-        <planeGeometry args={[0.4, 0.25]} />
+      <mesh position={[0.22, 1.5, 0]}>
+        <planeGeometry args={[0.45, 0.28]} />
         <meshStandardMaterial color={color} side={THREE.DoubleSide} />
       </mesh>
+      {/* Deposited chickens visible in the base */}
+      {chickenPositions.map(([cx, cz], idx) => (
+        <group key={`dep-${idx}`} position={[cx, 0, cz]}>
+          <mesh position={[0, 0.18, 0]}>
+            <sphereGeometry args={[0.14, 8, 8]} />
+            <meshStandardMaterial color="#f5f5f0" />
+          </mesh>
+          <mesh position={[0, 0.32, 0.05]}>
+            <sphereGeometry args={[0.08, 6, 6]} />
+            <meshStandardMaterial color="#f5f5f0" />
+          </mesh>
+          <mesh position={[0, 0.38, 0.05]}>
+            <sphereGeometry args={[0.035, 4, 4]} />
+            <meshStandardMaterial color="#e74c3c" />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }
 
-// ─── Player Character 3D ───
-function PlayerCharacter3D({
-  meshRef,
-  color,
-  isHunter,
-}: {
-  meshRef: React.RefObject<THREE.Group>;
-  color: string;
-  isHunter?: boolean;
-}) {
-  return (
-    <group ref={meshRef}>
-      {/* Shadow */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <circleGeometry args={[0.4, 12]} />
-        <meshStandardMaterial color="#000" transparent opacity={0.15} />
-      </mesh>
-      {/* Body */}
-      <mesh position={[0, 0.45, 0]}>
-        <capsuleGeometry args={[0.22, 0.3, 8, 12]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      {/* Head */}
-      <mesh position={[0, 0.9, 0]}>
-        <sphereGeometry args={[0.2, 12, 12]} />
-        <meshStandardMaterial color="#f5d5a8" />
-      </mesh>
-      {/* Hat/Cap */}
-      <mesh position={[0, 1.05, 0]}>
-        <coneGeometry args={[0.18, 0.2, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0, 0.96, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.25, 12]} />
-        <meshStandardMaterial color={color} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Eyes */}
-      <mesh position={[-0.07, 0.93, 0.17]}>
-        <sphereGeometry args={[0.035, 6, 6]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      <mesh position={[0.07, 0.93, 0.17]}>
-        <sphereGeometry args={[0.035, 6, 6]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      {/* Arms */}
-      <mesh position={[-0.32, 0.45, 0]} rotation={[0, 0, 0.3]}>
-        <capsuleGeometry args={[0.06, 0.25, 4, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0.32, 0.45, 0]} rotation={[0, 0, -0.3]}>
-        <capsuleGeometry args={[0.06, 0.25, 4, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      {/* Legs */}
-      <mesh position={[-0.1, 0.12, 0]}>
-        <capsuleGeometry args={[0.07, 0.15, 4, 8]} />
-        <meshStandardMaterial color="#5a4020" />
-      </mesh>
-      <mesh position={[0.1, 0.12, 0]}>
-        <capsuleGeometry args={[0.07, 0.15, 4, 8]} />
-        <meshStandardMaterial color="#5a4020" />
-      </mesh>
-      {/* Hunter crown */}
-      {isHunter && (
-        <mesh position={[0, 1.25, 0]}>
-          <coneGeometry args={[0.15, 0.2, 4]} />
-          <meshStandardMaterial color="#ff2020" emissive="#ff0000" emissiveIntensity={0.6} />
-        </mesh>
-      )}
-    </group>
-  );
-}
-
-// ─── Chicken 3D ───
-function Chicken3D({ chickenRef, type }: { chickenRef: React.RefObject<THREE.Group>; type: ChickenType }) {
-  const isGolden = type === 'golden';
-  const bodyColor = isGolden ? '#FFD700' : '#f5f5f0';
-  const isExplosive = type === 'explosive';
-  return (
-    <group ref={chickenRef}>
-      {/* Shadow */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <circleGeometry args={[0.2, 8]} />
-        <meshStandardMaterial color="#000" transparent opacity={0.12} />
-      </mesh>
-      {/* Body */}
-      <mesh position={[0, 0.22, 0]}>
-        <sphereGeometry args={[0.2, 10, 10]} />
-        <meshStandardMaterial
-          color={isExplosive ? '#ff6b6b' : bodyColor}
-          emissive={isGolden ? '#FFD700' : isExplosive ? '#ff0000' : '#000'}
-          emissiveIntensity={isGolden ? 0.5 : isExplosive ? 0.3 : 0}
-        />
-      </mesh>
-      {/* Tail feathers */}
-      <mesh position={[0, 0.28, -0.2]} rotation={[-0.5, 0, 0]}>
-        <coneGeometry args={[0.08, 0.18, 6]} />
-        <meshStandardMaterial color={isGolden ? '#DAA520' : '#e8e0d0'} />
-      </mesh>
-      {/* Wing L */}
-      <mesh position={[-0.18, 0.24, 0]} rotation={[0, 0, 0.4]}>
-        <sphereGeometry args={[0.1, 6, 6]} />
-        <meshStandardMaterial color={isGolden ? '#DAA520' : '#e8e0d0'} />
-      </mesh>
-      {/* Wing R */}
-      <mesh position={[0.18, 0.24, 0]} rotation={[0, 0, -0.4]}>
-        <sphereGeometry args={[0.1, 6, 6]} />
-        <meshStandardMaterial color={isGolden ? '#DAA520' : '#e8e0d0'} />
-      </mesh>
-      {/* Head */}
-      <mesh position={[0, 0.42, 0.1]}>
-        <sphereGeometry args={[0.12, 10, 10]} />
-        <meshStandardMaterial color={bodyColor} />
-      </mesh>
-      {/* Comb */}
-      <mesh position={[0, 0.54, 0.1]}>
-        <sphereGeometry args={[0.05, 6, 6]} />
-        <meshStandardMaterial color="#e74c3c" />
-      </mesh>
-      <mesh position={[0, 0.56, 0.08]}>
-        <sphereGeometry args={[0.035, 6, 6]} />
-        <meshStandardMaterial color="#c0392b" />
-      </mesh>
-      {/* Wattle */}
-      <mesh position={[0, 0.36, 0.2]}>
-        <sphereGeometry args={[0.03, 6, 6]} />
-        <meshStandardMaterial color="#e74c3c" />
-      </mesh>
-      {/* Beak */}
-      <mesh position={[0, 0.4, 0.22]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.03, 0.08, 6]} />
-        <meshStandardMaterial color="#f39c12" />
-      </mesh>
-      {/* Eyes */}
-      <mesh position={[-0.06, 0.45, 0.18]}>
-        <sphereGeometry args={[0.02, 6, 6]} />
-        <meshStandardMaterial color="#111" />
-      </mesh>
-      <mesh position={[0.06, 0.45, 0.18]}>
-        <sphereGeometry args={[0.02, 6, 6]} />
-        <meshStandardMaterial color="#111" />
-      </mesh>
-      {/* Feet */}
-      <mesh position={[-0.07, 0.03, 0.02]}>
-        <boxGeometry args={[0.04, 0.05, 0.1]} />
-        <meshStandardMaterial color="#e67e22" />
-      </mesh>
-      <mesh position={[0.07, 0.03, 0.02]}>
-        <boxGeometry args={[0.04, 0.05, 0.1]} />
-        <meshStandardMaterial color="#e67e22" />
-      </mesh>
-    </group>
-  );
-}
-
-// ─── Scene Content (inside Canvas) ───
+// ─── Scene Content ───
 function SceneContent({
   config,
   onHudUpdate,
@@ -322,26 +217,24 @@ function SceneContent({
   keysRef: React.RefObject<Set<string>>;
 }) {
   const { camera } = useThree();
-  const playerPos = useRef({ x: BASE_POSITIONS[0][0], z: BASE_POSITIONS[0][2] });
+  const bases = getBasesForMode(config.mode, config.botCount);
+  const playerBaseIdx = config.mode === 'teams' ? 0 : 0;
+  const playerPos = useRef({ x: bases[playerBaseIdx][0], z: bases[playerBaseIdx][2] });
   const playerAngle = useRef(0);
   const playerGroupRef = useRef<THREE.Group>(null);
   const chickensRef = useRef<ChickenState[]>(
     Array.from({ length: MAX_CHICKENS }, (_, i) => {
       if (config.mode === 'king' && i === 0) return createChicken('golden');
-      if (config.mode === 'crazy') {
-        const types: ChickenType[] = ['normal', 'fast', 'teleport', 'explosive'];
-        return createChicken(types[Math.floor(Math.random() * types.length)]);
-      }
       return createChicken('normal');
     })
   );
   const chickenGroupRefs = useRef<(THREE.Group | null)[]>([]);
   const botsRef = useRef<BotState[]>(
-    Array.from({ length: config.botCount }, (_, i) => createBot(i))
+    Array.from({ length: config.botCount }, (_, i) => createBot(i, config.mode))
   );
   const botGroupRefs = useRef<(THREE.Group | null)[]>([]);
   const localScore = useRef(0);
-  const localCarriedIdx = useRef(-1); // index of chicken being carried, -1 = none
+  const localCarriedIdx = useRef(-1);
   const speedMult = useRef(1);
   const doublePoints = useRef(false);
   const hudTimer = useRef(0);
@@ -349,43 +242,54 @@ function SceneContent({
   const currentChallenge = useRef(0);
   const abilityCooldown = useRef(0);
   const abilityActive = useRef(false);
+  const playerAbility = useRef<AbilityType>('speed');
+  const playerInvisible = useRef(false);
   const luckBoxes = useRef<LuckBox[]>([]);
   const luckBoxRefs = useRef<(THREE.Mesh | null)[]>([]);
   const stealCooldown = useRef(0);
   const walkCycle = useRef(0);
   const notificationRef = useRef('');
   const notificationTimer = useRef(0);
+  const depositedCounts = useRef<number[]>(bases.map(() => 0));
+
+  // Assign random ability
+  useEffect(() => {
+    const abilities: AbilityType[] = ['speed', 'magnet', 'invisible', 'freeze'];
+    playerAbility.current = abilities[Math.floor(Math.random() * abilities.length)];
+  }, []);
 
   useEffect(() => {
-    camera.position.set(0, 28, 16);
+    // Wider camera view
+    camera.position.set(0, 35, 20);
     camera.lookAt(0, 0, 0);
   }, [camera]);
 
   useEffect(() => {
     if (config.mode !== 'luck') return;
-    luckBoxes.current = Array.from({ length: 6 }, () => {
+    luckBoxes.current = Array.from({ length: 8 }, () => {
       const [x, z] = randomInArena();
       const types: LuckBox['type'][] = ['speed', 'lose', 'freeze', 'double'];
       return { x, z, active: true, type: types[Math.floor(Math.random() * 4)], timer: 0 };
     });
   }, [config.mode]);
 
-  // Respawn helper
+  // In invisible mode, chickens start hidden
+  useEffect(() => {
+    if (config.mode === 'invisible') {
+      chickensRef.current.forEach(c => { c.visible = false; });
+    }
+  }, [config.mode]);
+
   const respawnChickens = useCallback((chickens: ChickenState[]) => {
-    const freeCount = chickens.filter(c => c.active && c.carriedBy < 0).length;
+    const freeCount = chickens.filter(c => c.active && c.carriedBy < 0 && !c.deposited).length;
     if (freeCount < 6) {
       for (const c of chickens) {
         if (!c.active) {
-          const isKingMode = config.mode === 'king';
-          const isCrazyMode = config.mode === 'crazy';
           let type: ChickenType = 'normal';
-          if (isKingMode && Math.random() < 0.12) type = 'golden';
-          else if (isCrazyMode) {
-            const t: ChickenType[] = ['normal', 'fast', 'teleport', 'explosive'];
-            type = t[Math.floor(Math.random() * t.length)];
-          }
+          if (config.mode === 'king' && Math.random() < 0.12) type = 'golden';
           Object.assign(c, createChicken(type));
-          if (chickens.filter(cc => cc.active && cc.carriedBy < 0).length >= 10) break;
+          if (config.mode === 'invisible') c.visible = false;
+          if (chickens.filter(cc => cc.active && cc.carriedBy < 0 && !cc.deposited).length >= 10) break;
         }
       }
     }
@@ -424,16 +328,13 @@ function SceneContent({
     pos.x = Math.max(-MAP_EXTENT, Math.min(MAP_EXTENT, pos.x));
     pos.z = Math.max(-MAP_EXTENT, Math.min(MAP_EXTENT, pos.z));
 
-    // Update player group
     if (playerGroupRef.current) {
       playerGroupRef.current.position.set(pos.x, 0, pos.z);
       playerGroupRef.current.rotation.y = playerAngle.current;
-      // Walk animation
       if (moved) {
-        const bob = Math.sin(walkCycle.current) * 0.04;
-        playerGroupRef.current.position.y = bob;
+        playerGroupRef.current.position.y = Math.sin(walkCycle.current) * 0.04;
       }
-      // Invisible mode
+      // Invisible mode - players semi-visible
       playerGroupRef.current.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
@@ -448,19 +349,57 @@ function SceneContent({
     // ── Ability ──
     if (config.mode === 'abilities' && keys.has(' ') && abilityCooldown.current <= 0 && !abilityActive.current) {
       abilityActive.current = true;
-      abilityCooldown.current = 15;
-      speedMult.current = 2.5;
-      showNotification('⚡ سرعة خارقة!');
-      setTimeout(() => { speedMult.current = 1; abilityActive.current = false; }, 3000);
+      const ability = playerAbility.current;
+      
+      switch (ability) {
+        case 'speed':
+          abilityCooldown.current = 15;
+          speedMult.current = 2.5;
+          showNotification('⚡ سرعة خارقة!');
+          setTimeout(() => { speedMult.current = 1; abilityActive.current = false; }, 3000);
+          break;
+        case 'magnet': {
+          abilityCooldown.current = 12;
+          // Pull nearest free chicken to player
+          let nearestDist = Infinity;
+          let nearestIdx = -1;
+          chickens.forEach((c, ci) => {
+            if (c.carriedBy >= 0 || !c.active || c.deposited) return;
+            const d = dist2(pos.x, pos.z, c.x, c.z);
+            if (d < nearestDist) { nearestDist = d; nearestIdx = ci; }
+          });
+          if (nearestIdx >= 0 && localCarriedIdx.current < 0) {
+            const c = chickens[nearestIdx];
+            c.x = pos.x; c.z = pos.z;
+            c.carriedBy = 0;
+            localCarriedIdx.current = nearestIdx;
+            showNotification('🧲 مغناطيس! جذبت فرخة!');
+          } else {
+            showNotification('🧲 مافي فراخ قريبة!');
+          }
+          setTimeout(() => { abilityActive.current = false; }, 1000);
+          break;
+        }
+        case 'invisible':
+          abilityCooldown.current = 18;
+          playerInvisible.current = true;
+          showNotification('👻 اختفيت عن البوتات!');
+          setTimeout(() => { playerInvisible.current = false; abilityActive.current = false; }, 4000);
+          break;
+        case 'freeze':
+          abilityCooldown.current = 20;
+          bots.forEach(b => { b.frozen = true; b.frozenTimer = 3; });
+          showNotification('❄️ جمّدت كل الخصوم!');
+          setTimeout(() => { abilityActive.current = false; }, 1000);
+          break;
+      }
     }
     if (abilityCooldown.current > 0) abilityCooldown.current -= delta;
 
     // ── Chicken AI ──
-    const chickenSpeedMult = config.mode === 'crazy' ? 2.5 : 1;
     chickens.forEach((chicken, i) => {
-      if (!chicken.active || chicken.carriedBy >= 0) return;
+      if (!chicken.active || chicken.carriedBy >= 0 || chicken.deposited) return;
 
-      // Teleport type
       if (chicken.type === 'teleport') {
         chicken.blinkTimer += delta;
         if (chicken.blinkTimer > 3) {
@@ -478,17 +417,26 @@ function SceneContent({
         const [tx, tz] = randomInArena();
         chicken.targetX = tx; chicken.targetZ = tz;
       } else {
-        chicken.x += (cdx / cd) * chicken.speed * chickenSpeedMult * delta;
-        chicken.z += (cdz / cd) * chicken.speed * chickenSpeedMult * delta;
+        chicken.x += (cdx / cd) * chicken.speed * delta;
+        chicken.z += (cdz / cd) * chicken.speed * delta;
       }
 
       const mesh = chickenGroupRefs.current[i];
       if (mesh) {
         mesh.position.set(chicken.x, 0, chicken.z);
-        mesh.visible = chicken.active && chicken.visible;
         mesh.rotation.y = Math.atan2(cdx, cdz);
-        // Wobble
         mesh.rotation.z = Math.sin(Date.now() * 0.006 + i * 2) * 0.08;
+        
+        // Invisible mode: chickens hidden until player touches them
+        if (config.mode === 'invisible') {
+          const playerDist = dist2(pos.x, pos.z, chicken.x, chicken.z);
+          if (playerDist < CHICKEN_CATCH_DIST * 1.5) {
+            chicken.visible = true; // reveal on proximity
+          }
+          mesh.visible = chicken.visible && chicken.active;
+        } else {
+          mesh.visible = chicken.active;
+        }
       }
     });
 
@@ -499,9 +447,9 @@ function SceneContent({
         const mesh = chickenGroupRefs.current[localCarriedIdx.current];
         if (mesh) {
           mesh.position.set(
-            pos.x - Math.sin(playerAngle.current) * 0.7,
-            0.3,
-            pos.z - Math.cos(playerAngle.current) * 0.7
+            pos.x - Math.sin(playerAngle.current) * 0.8,
+            0.4,
+            pos.z - Math.cos(playerAngle.current) * 0.8
           );
           mesh.visible = true;
         }
@@ -509,16 +457,16 @@ function SceneContent({
     }
 
     // Carried chickens follow bots
-    bots.forEach((bot, bi) => {
+    bots.forEach((bot) => {
       if (bot.carryingChickenIdx >= 0) {
         const c = chickens[bot.carryingChickenIdx];
         if (c && c.active) {
           const mesh = chickenGroupRefs.current[bot.carryingChickenIdx];
           if (mesh) {
             mesh.position.set(
-              bot.x - Math.sin(bot.facingAngle) * 0.7,
-              0.3,
-              bot.z - Math.cos(bot.facingAngle) * 0.7
+              bot.x - Math.sin(bot.facingAngle) * 0.8,
+              0.4,
+              bot.z - Math.cos(bot.facingAngle) * 0.8
             );
             mesh.visible = true;
           }
@@ -526,45 +474,31 @@ function SceneContent({
       }
     });
 
-    // Hide inactive chickens
+    // Hide inactive / deposited chickens
     chickens.forEach((c, i) => {
-      if (!c.active) {
+      if (!c.active || c.deposited) {
         const mesh = chickenGroupRefs.current[i];
         if (mesh) mesh.visible = false;
       }
     });
 
-    // ── Player catches chicken (ONLY 1 at a time) ──
+    // ── Player catches chicken (ONLY 1) ──
     if (localCarriedIdx.current < 0) {
       for (let i = 0; i < chickens.length; i++) {
         const c = chickens[i];
-        if (!c.active || c.carriedBy >= 0) continue;
+        if (!c.active || c.carriedBy >= 0 || c.deposited) continue;
         if (dist2(pos.x, pos.z, c.x, c.z) < CHICKEN_CATCH_DIST) {
+          // In invisible mode, reveal on catch
+          if (config.mode === 'invisible') c.visible = true;
           c.carriedBy = 0;
           localCarriedIdx.current = i;
-
-          // Explosive chicken in crazy mode
-          if (c.type === 'explosive') {
-            c.carriedBy = -1;
-            c.active = false;
-            localCarriedIdx.current = -1;
-            showNotification('💥 فرخة متفجرة! ضاعت!');
-            // Scatter nearby free chickens
-            chickens.forEach(c2 => {
-              if (c2.active && c2.carriedBy < 0 && dist2(c.x, c.z, c2.x, c2.z) < 4) {
-                const [nx, nz] = randomInArena();
-                c2.x = nx; c2.z = nz;
-                c2.targetX = nx; c2.targetZ = nz;
-              }
-            });
-          }
           break;
         }
       }
     }
 
     // ── Deposit at base ──
-    const myBase = BASE_POSITIONS[0];
+    const myBase = bases[playerBaseIdx];
     if (localCarriedIdx.current >= 0 && dist2(pos.x, pos.z, myBase[0], myBase[2]) < BASE_DEPOSIT_DIST) {
       const c = chickens[localCarriedIdx.current];
       let points = 1;
@@ -573,7 +507,10 @@ function SceneContent({
       localScore.current += points;
       c.active = false;
       c.carriedBy = -1;
+      c.deposited = true;
+      c.depositedBase = playerBaseIdx;
       localCarriedIdx.current = -1;
+      depositedCounts.current[playerBaseIdx]++;
       showNotification(`+${points} نقطة!`);
       respawnChickens(chickens);
     }
@@ -581,15 +518,18 @@ function SceneContent({
     // ── Theft Mode ──
     if (config.mode === 'theft' && stealCooldown.current <= 0 && localCarriedIdx.current < 0) {
       for (let bi = 0; bi < bots.length; bi++) {
-        const base = BASE_POSITIONS[bi + 1];
+        const botBase = getBotBaseIndex(bi, config.mode);
+        const base = bases[botBase];
+        if (!base) continue;
         if (dist2(pos.x, pos.z, base[0], base[2]) < BASE_DEPOSIT_DIST && bots[bi].score > 0) {
           bots[bi].score -= 1;
-          // Create a stolen chicken near player
-          const inactiveC = chickens.find(ch => !ch.active);
+          depositedCounts.current[botBase] = Math.max(0, depositedCounts.current[botBase] - 1);
+          const inactiveC = chickens.find(ch => !ch.active || ch.deposited);
           if (inactiveC) {
             const idx = chickens.indexOf(inactiveC);
             Object.assign(inactiveC, createChicken('normal'));
             inactiveC.carriedBy = 0;
+            inactiveC.deposited = false;
             inactiveC.x = pos.x; inactiveC.z = pos.z;
             localCarriedIdx.current = idx;
             showNotification('🦹 سرقت فرخة!');
@@ -606,30 +546,41 @@ function SceneContent({
       if (bot.frozen) {
         bot.frozenTimer -= delta;
         if (bot.frozenTimer <= 0) bot.frozen = false;
-        // Update mesh but don't move
         const grp = botGroupRefs.current[bi];
-        if (grp) {
-          grp.position.set(bot.x, 0, bot.z);
-          // Frozen visual: blue tint handled via traverse if needed
-        }
+        if (grp) grp.position.set(bot.x, 0, bot.z);
         return;
       }
 
       const botSpeed = PLAYER_SPEED * 0.55 * delta;
-      const botBaseIdx = bi + 1;
+      const botBase = getBotBaseIndex(bi, config.mode);
 
-      // Survival mode: bot 0 is hunter
+      // Survival mode: bot 0 is hunter - chase NEAREST player (not just local)
       if (config.mode === 'survival' && bi === 0) {
-        const hdx = pos.x - bot.x;
-        const hdz = pos.z - bot.z;
+        // Find nearest target among all non-hunter entities
+        let targetX = pos.x, targetZ = pos.z;
+        let minD = dist2(bot.x, bot.z, pos.x, pos.z);
+        
+        // Also consider other bots as targets (chase nearest)
+        bots.forEach((otherBot, oi) => {
+          if (oi === 0) return; // skip self (hunter)
+          const d = dist2(bot.x, bot.z, otherBot.x, otherBot.z);
+          if (d < minD) {
+            minD = d;
+            targetX = otherBot.x;
+            targetZ = otherBot.z;
+          }
+        });
+
+        const hdx = targetX - bot.x;
+        const hdz = targetZ - bot.z;
         const hd = Math.sqrt(hdx * hdx + hdz * hdz);
         if (hd > 0.3) {
           bot.x += (hdx / hd) * botSpeed * 1.3;
           bot.z += (hdz / hd) * botSpeed * 1.3;
           bot.facingAngle = Math.atan2(hdx, hdz);
         }
-        if (hd < 1.0 && localCarriedIdx.current >= 0) {
-          // Player caught - loses chicken
+        // If close to player, make them lose chicken
+        if (dist2(bot.x, bot.z, pos.x, pos.z) < 1.0 && localCarriedIdx.current >= 0) {
           const c = chickens[localCarriedIdx.current];
           c.carriedBy = -1;
           const [nx, nz] = randomInArena();
@@ -637,15 +588,29 @@ function SceneContent({
           localCarriedIdx.current = -1;
           showNotification('🏃 أمسك بك الصياد!');
         }
+        // If close to other bots, make them lose chicken too
+        bots.forEach((otherBot, oi) => {
+          if (oi === 0) return;
+          if (dist2(bot.x, bot.z, otherBot.x, otherBot.z) < 1.0 && otherBot.carryingChickenIdx >= 0) {
+            const c = chickens[otherBot.carryingChickenIdx];
+            c.carriedBy = -1;
+            const [nx, nz] = randomInArena();
+            c.x = nx; c.z = nz; c.targetX = nx; c.targetZ = nz;
+            otherBot.carryingChickenIdx = -1;
+          }
+        });
       } else if (bot.carryingChickenIdx < 0) {
         // Hunt nearest free chicken
         let nearestDist = Infinity;
         let nearestIdx = -1;
         chickens.forEach((c, ci) => {
-          if (c.carriedBy >= 0 || !c.active) return;
+          if (c.carriedBy >= 0 || !c.active || c.deposited) return;
+          // In invisible mode, bots can still find chickens (they "feel" for them)
           const d = dist2(bot.x, bot.z, c.x, c.z);
           if (d < nearestDist) { nearestDist = d; nearestIdx = ci; }
         });
+
+        // If invisible ability active, bot ignores player position
         if (nearestIdx >= 0) {
           const c = chickens[nearestIdx];
           const bdx = c.x - bot.x;
@@ -657,39 +622,43 @@ function SceneContent({
             bot.facingAngle = Math.atan2(bdx, bdz);
           }
           if (bd < CHICKEN_CATCH_DIST) {
-            // Catch only 1
-            c.carriedBy = botBaseIdx;
+            if (config.mode === 'invisible') c.visible = true;
+            c.carriedBy = botBase;
             bot.carryingChickenIdx = nearestIdx;
           }
         }
       } else {
-        // Return to base with 1 chicken
-        const base = BASE_POSITIONS[botBaseIdx];
-        const bdx = base[0] - bot.x;
-        const bdz = base[2] - bot.z;
-        const bd = Math.sqrt(bdx * bdx + bdz * bdz);
-        if (bd > 0.3) {
-          bot.x += (bdx / bd) * botSpeed;
-          bot.z += (bdz / bd) * botSpeed;
-          bot.facingAngle = Math.atan2(bdx, bdz);
-        }
-        if (bd < BASE_DEPOSIT_DIST) {
-          const c = chickens[bot.carryingChickenIdx];
-          let pts = 1;
-          if (c.type === 'golden') pts = 5;
-          bot.score += pts;
-          c.active = false;
-          c.carriedBy = -1;
-          bot.carryingChickenIdx = -1;
-          respawnChickens(chickens);
+        // Return to base
+        const base = bases[botBase];
+        if (base) {
+          const bdx = base[0] - bot.x;
+          const bdz = base[2] - bot.z;
+          const bd = Math.sqrt(bdx * bdx + bdz * bdz);
+          if (bd > 0.3) {
+            bot.x += (bdx / bd) * botSpeed;
+            bot.z += (bdz / bd) * botSpeed;
+            bot.facingAngle = Math.atan2(bdx, bdz);
+          }
+          if (bd < BASE_DEPOSIT_DIST) {
+            const c = chickens[bot.carryingChickenIdx];
+            let pts = 1;
+            if (c.type === 'golden') pts = 5;
+            bot.score += pts;
+            c.active = false;
+            c.carriedBy = -1;
+            c.deposited = true;
+            c.depositedBase = botBase;
+            bot.carryingChickenIdx = -1;
+            depositedCounts.current[botBase]++;
+            respawnChickens(chickens);
+          }
         }
       }
 
-      // Clamp bot to map
+      // Clamp
       bot.x = Math.max(-MAP_EXTENT, Math.min(MAP_EXTENT, bot.x));
       bot.z = Math.max(-MAP_EXTENT, Math.min(MAP_EXTENT, bot.z));
 
-      // Update bot mesh
       const grp = botGroupRefs.current[bi];
       if (grp) {
         grp.position.set(bot.x, 0, bot.z);
@@ -705,7 +674,7 @@ function SceneContent({
       }
     });
 
-    // ── Luck Boxes ──
+    // ── Luck Boxes (player AND bots can pick up) ──
     if (config.mode === 'luck') {
       luckBoxes.current.forEach((box, i) => {
         if (!box.active) {
@@ -721,41 +690,75 @@ function SceneContent({
         if (mesh) {
           mesh.visible = box.active;
           if (box.active) {
-            mesh.position.set(box.x, 0.4 + Math.sin(Date.now() * 0.003 + i) * 0.15, box.z);
+            mesh.position.set(box.x, 0.5 + Math.sin(Date.now() * 0.003 + i) * 0.15, box.z);
             mesh.rotation.y += delta * 2;
           }
         }
-        if (box.active && dist2(pos.x, pos.z, box.x, box.z) < 1.0) {
+
+        if (!box.active) return;
+
+        // Player picks up
+        if (dist2(pos.x, pos.z, box.x, box.z) < 1.2) {
           box.active = false;
           box.timer = 0;
-          switch (box.type) {
-            case 'speed':
-              speedMult.current = 2;
-              showNotification('💨 سرعة مضاعفة!');
-              setTimeout(() => { speedMult.current = 1; }, 5000);
-              break;
-            case 'lose':
-              if (localCarriedIdx.current >= 0) {
-                const c = chickens[localCarriedIdx.current];
-                c.carriedBy = -1;
-                const [nx, nz] = randomInArena();
-                c.x = nx; c.z = nz;
-                localCarriedIdx.current = -1;
-                showNotification('😱 خسرت الفرخة!');
-              }
-              break;
-            case 'freeze':
-              bots.forEach(b => { b.frozen = true; b.frozenTimer = 4; });
-              showNotification('❄️ تجميد الخصوم!');
-              break;
-            case 'double':
-              doublePoints.current = true;
-              showNotification('✨ نقاط مضاعفة!');
-              setTimeout(() => { doublePoints.current = false; }, 10000);
-              break;
-          }
+          applyLuckBox(box.type, -1); // -1 = player
         }
+
+        // Bots pick up
+        bots.forEach((bot, bi) => {
+          if (!box.active) return;
+          if (bot.frozen) return;
+          if (dist2(bot.x, bot.z, box.x, box.z) < 1.2) {
+            box.active = false;
+            box.timer = 0;
+            applyLuckBox(box.type, bi);
+          }
+        });
       });
+    }
+
+    function applyLuckBox(type: LuckBox['type'], entityIdx: number) {
+      const isPlayer = entityIdx === -1;
+      switch (type) {
+        case 'speed':
+          if (isPlayer) {
+            speedMult.current = 2;
+            showNotification('💨 سرعة مضاعفة!');
+            setTimeout(() => { speedMult.current = 1; }, 5000);
+          }
+          // Bot speed boost is implicit (they already move)
+          break;
+        case 'lose':
+          if (isPlayer && localCarriedIdx.current >= 0) {
+            const c = chickens[localCarriedIdx.current];
+            c.carriedBy = -1;
+            const [nx, nz] = randomInArena();
+            c.x = nx; c.z = nz;
+            localCarriedIdx.current = -1;
+            showNotification('😱 خسرت الفرخة!');
+          } else if (!isPlayer && bots[entityIdx].carryingChickenIdx >= 0) {
+            const c = chickens[bots[entityIdx].carryingChickenIdx];
+            c.carriedBy = -1;
+            const [nx, nz] = randomInArena();
+            c.x = nx; c.z = nz;
+            bots[entityIdx].carryingChickenIdx = -1;
+          }
+          break;
+        case 'freeze':
+          if (isPlayer) {
+            bots.forEach(b => { b.frozen = true; b.frozenTimer = 4; });
+            showNotification('❄️ تجميد الخصوم!');
+          }
+          // If bot picks it up, freeze player... we skip that for simplicity
+          break;
+        case 'double':
+          if (isPlayer) {
+            doublePoints.current = true;
+            showNotification('✨ نقاط مضاعفة!');
+            setTimeout(() => { doublePoints.current = false; }, 10000);
+          }
+          break;
+      }
     }
 
     // ── Challenges ──
@@ -775,17 +778,16 @@ function SceneContent({
     if (hudTimer.current > 0.15) {
       hudTimer.current = 0;
       const scores: PlayerScore[] = [
-        { id: 'local', name: PLAYER_NAMES_AR[0], color: PLAYER_COLORS[0], score: localScore.current },
+        { id: 'local', name: config.playerName || PLAYER_NAMES_AR[0], color: PLAYER_COLORS[0], score: localScore.current },
         ...bots.map((b, i) => ({
           id: `bot-${i}`, name: PLAYER_NAMES_AR[i + 1] || `بوت ${i + 1}`,
           color: PLAYER_COLORS[i + 1] || '#888', score: b.score,
         })),
       ];
       if (config.mode === 'teams') {
-        scores[0].team = 0;
-        if (scores[1]) scores[1].team = 0;
-        if (scores[2]) scores[2].team = 1;
-        if (scores[3]) scores[3].team = 1;
+        scores.forEach((s, i) => {
+          s.team = i <= 1 ? 0 : 1; // First 2 = team 0, rest = team 1
+        });
       }
       onHudUpdate({
         scores,
@@ -794,15 +796,18 @@ function SceneContent({
         challengeText: config.mode === 'challenges' ? CHALLENGES[currentChallenge.current] : undefined,
         abilityReady: config.mode === 'abilities' ? abilityCooldown.current <= 0 && !abilityActive.current : undefined,
         abilityCooldown: config.mode === 'abilities' ? Math.ceil(Math.max(0, abilityCooldown.current)) : undefined,
+        abilityType: config.mode === 'abilities' ? playerAbility.current : undefined,
       });
     }
   });
 
+  const chickenScale = 1.5; // Bigger chickens
+
   return (
     <>
       <ambientLight intensity={0.65} />
-      <directionalLight position={[10, 20, 10]} intensity={1} castShadow />
-      <directionalLight position={[-8, 15, -8]} intensity={0.25} />
+      <directionalLight position={[10, 25, 10]} intensity={1} castShadow />
+      <directionalLight position={[-8, 18, -8]} intensity={0.25} />
       <hemisphereLight args={['#87ceeb', '#4a8c3f', 0.3]} />
 
       {config.mode === 'challenges' && currentChallenge.current === 2 && (
@@ -812,23 +817,55 @@ function SceneContent({
       <Ground />
 
       {/* Bases */}
-      {BASE_POSITIONS.slice(0, config.botCount + 1).map((p, i) => (
-        <BaseZone key={i} position={p} color={PLAYER_COLORS[i]} />
+      {bases.map((p, i) => (
+        <BaseZone key={i} position={p} color={PLAYER_COLORS[i]} depositedCount={depositedCounts.current[i]} />
       ))}
 
       {/* Local Player */}
-      <PlayerCharacter3D meshRef={playerGroupRef} color={PLAYER_COLORS[0]} />
+      <group ref={playerGroupRef}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+          <circleGeometry args={[0.4, 12]} />
+          <meshStandardMaterial color="#000" transparent opacity={0.15} />
+        </mesh>
+        <mesh position={[0, 0.45, 0]}>
+          <capsuleGeometry args={[0.25, 0.35, 8, 12]} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} />
+        </mesh>
+        <mesh position={[0, 0.95, 0]}>
+          <sphereGeometry args={[0.22, 12, 12]} />
+          <meshStandardMaterial color="#f5d5a8" />
+        </mesh>
+        <mesh position={[0, 1.12, 0]}>
+          <coneGeometry args={[0.2, 0.22, 8]} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} />
+        </mesh>
+        <mesh position={[-0.08, 0.98, 0.19]}>
+          <sphereGeometry args={[0.04, 6, 6]} />
+          <meshStandardMaterial color="#222" />
+        </mesh>
+        <mesh position={[0.08, 0.98, 0.19]}>
+          <sphereGeometry args={[0.04, 6, 6]} />
+          <meshStandardMaterial color="#222" />
+        </mesh>
+        <mesh position={[-0.35, 0.48, 0]} rotation={[0, 0, 0.3]}>
+          <capsuleGeometry args={[0.07, 0.28, 4, 8]} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} />
+        </mesh>
+        <mesh position={[0.35, 0.48, 0]} rotation={[0, 0, -0.3]}>
+          <capsuleGeometry args={[0.07, 0.28, 4, 8]} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} />
+        </mesh>
+        <mesh position={[-0.12, 0.12, 0]}>
+          <capsuleGeometry args={[0.08, 0.16, 4, 8]} />
+          <meshStandardMaterial color="#5a4020" />
+        </mesh>
+        <mesh position={[0.12, 0.12, 0]}>
+          <capsuleGeometry args={[0.08, 0.16, 4, 8]} />
+          <meshStandardMaterial color="#5a4020" />
+        </mesh>
+      </group>
 
       {/* Bot Players */}
-      {botsRef.current.map((_, i) => (
-        <PlayerCharacter3D
-          key={`bot-${i}`}
-          meshRef={{ current: null } as React.RefObject<THREE.Group>}
-          color={PLAYER_COLORS[i + 1]}
-          isHunter={config.mode === 'survival' && i === 0}
-        />
-      ))}
-      {/* We need actual refs for bots - render invisible groups with refs */}
       {botsRef.current.map((bot, i) => (
         <group key={`botG-${i}`} ref={el => { botGroupRefs.current[i] = el; }} position={[bot.x, 0, bot.z]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
@@ -836,126 +873,116 @@ function SceneContent({
             <meshStandardMaterial color="#000" transparent opacity={0.15} />
           </mesh>
           <mesh position={[0, 0.45, 0]}>
-            <capsuleGeometry args={[0.22, 0.3, 8, 12]} />
-            <meshStandardMaterial color={PLAYER_COLORS[i + 1]} />
+            <capsuleGeometry args={[0.25, 0.35, 8, 12]} />
+            <meshStandardMaterial color={PLAYER_COLORS[i + 1] || '#888'} />
           </mesh>
-          <mesh position={[0, 0.9, 0]}>
-            <sphereGeometry args={[0.2, 12, 12]} />
+          <mesh position={[0, 0.95, 0]}>
+            <sphereGeometry args={[0.22, 12, 12]} />
             <meshStandardMaterial color="#f5d5a8" />
           </mesh>
-          <mesh position={[0, 1.05, 0]}>
-            <coneGeometry args={[0.18, 0.2, 8]} />
-            <meshStandardMaterial color={PLAYER_COLORS[i + 1]} />
+          <mesh position={[0, 1.12, 0]}>
+            <coneGeometry args={[0.2, 0.22, 8]} />
+            <meshStandardMaterial color={PLAYER_COLORS[i + 1] || '#888'} />
           </mesh>
-          <mesh position={[0, 0.96, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.25, 12]} />
-            <meshStandardMaterial color={PLAYER_COLORS[i + 1]} side={THREE.DoubleSide} />
-          </mesh>
-          <mesh position={[-0.07, 0.93, 0.17]}>
-            <sphereGeometry args={[0.035, 6, 6]} />
+          <mesh position={[-0.08, 0.98, 0.19]}>
+            <sphereGeometry args={[0.04, 6, 6]} />
             <meshStandardMaterial color="#222" />
           </mesh>
-          <mesh position={[0.07, 0.93, 0.17]}>
-            <sphereGeometry args={[0.035, 6, 6]} />
+          <mesh position={[0.08, 0.98, 0.19]}>
+            <sphereGeometry args={[0.04, 6, 6]} />
             <meshStandardMaterial color="#222" />
           </mesh>
-          <mesh position={[-0.32, 0.45, 0]} rotation={[0, 0, 0.3]}>
-            <capsuleGeometry args={[0.06, 0.25, 4, 8]} />
-            <meshStandardMaterial color={PLAYER_COLORS[i + 1]} />
+          <mesh position={[-0.35, 0.48, 0]} rotation={[0, 0, 0.3]}>
+            <capsuleGeometry args={[0.07, 0.28, 4, 8]} />
+            <meshStandardMaterial color={PLAYER_COLORS[i + 1] || '#888'} />
           </mesh>
-          <mesh position={[0.32, 0.45, 0]} rotation={[0, 0, -0.3]}>
-            <capsuleGeometry args={[0.06, 0.25, 4, 8]} />
-            <meshStandardMaterial color={PLAYER_COLORS[i + 1]} />
+          <mesh position={[0.35, 0.48, 0]} rotation={[0, 0, -0.3]}>
+            <capsuleGeometry args={[0.07, 0.28, 4, 8]} />
+            <meshStandardMaterial color={PLAYER_COLORS[i + 1] || '#888'} />
           </mesh>
-          <mesh position={[-0.1, 0.12, 0]}>
-            <capsuleGeometry args={[0.07, 0.15, 4, 8]} />
+          <mesh position={[-0.12, 0.12, 0]}>
+            <capsuleGeometry args={[0.08, 0.16, 4, 8]} />
             <meshStandardMaterial color="#5a4020" />
           </mesh>
-          <mesh position={[0.1, 0.12, 0]}>
-            <capsuleGeometry args={[0.07, 0.15, 4, 8]} />
+          <mesh position={[0.12, 0.12, 0]}>
+            <capsuleGeometry args={[0.08, 0.16, 4, 8]} />
             <meshStandardMaterial color="#5a4020" />
           </mesh>
           {config.mode === 'survival' && i === 0 && (
-            <mesh position={[0, 1.25, 0]}>
-              <coneGeometry args={[0.15, 0.2, 4]} />
+            <mesh position={[0, 1.3, 0]}>
+              <coneGeometry args={[0.17, 0.22, 4]} />
               <meshStandardMaterial color="#ff2020" emissive="#ff0000" emissiveIntensity={0.6} />
             </mesh>
           )}
         </group>
       ))}
 
-      {/* Chickens */}
+      {/* Chickens - bigger */}
       {chickensRef.current.map((c, i) => (
-        <group key={`chk-${i}`} ref={el => { chickenGroupRefs.current[i] = el; }} position={[c.x, 0, c.z]}>
+        <group key={`chk-${i}`} ref={el => { chickenGroupRefs.current[i] = el; }} position={[c.x, 0, c.z]} scale={[chickenScale, chickenScale, chickenScale]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-            <circleGeometry args={[0.18, 8]} />
+            <circleGeometry args={[0.2, 8]} />
             <meshStandardMaterial color="#000" transparent opacity={0.1} />
           </mesh>
           <mesh position={[0, 0.22, 0]}>
-            <sphereGeometry args={[0.2, 10, 10]} />
+            <sphereGeometry args={[0.22, 10, 10]} />
             <meshStandardMaterial
-              color={c.type === 'golden' ? '#FFD700' : c.type === 'explosive' ? '#ff6b6b' : '#f5f5f0'}
-              emissive={c.type === 'golden' ? '#FFD700' : c.type === 'explosive' ? '#ff0000' : '#000'}
-              emissiveIntensity={c.type === 'golden' ? 0.5 : c.type === 'explosive' ? 0.3 : 0}
+              color={c.type === 'golden' ? '#FFD700' : '#f5f5f0'}
+              emissive={c.type === 'golden' ? '#FFD700' : '#000'}
+              emissiveIntensity={c.type === 'golden' ? 0.5 : 0}
             />
           </mesh>
-          <mesh position={[0, 0.28, -0.18]} rotation={[-0.5, 0, 0]}>
-            <coneGeometry args={[0.07, 0.15, 6]} />
+          <mesh position={[0, 0.3, -0.2]} rotation={[-0.5, 0, 0]}>
+            <coneGeometry args={[0.08, 0.18, 6]} />
             <meshStandardMaterial color={c.type === 'golden' ? '#DAA520' : '#e8e0d0'} />
           </mesh>
-          <mesh position={[-0.17, 0.24, 0]} rotation={[0, 0, 0.4]}>
-            <sphereGeometry args={[0.09, 6, 6]} />
+          <mesh position={[-0.2, 0.26, 0]} rotation={[0, 0, 0.4]}>
+            <sphereGeometry args={[0.1, 6, 6]} />
             <meshStandardMaterial color={c.type === 'golden' ? '#DAA520' : '#e8e0d0'} />
           </mesh>
-          <mesh position={[0.17, 0.24, 0]} rotation={[0, 0, -0.4]}>
-            <sphereGeometry args={[0.09, 6, 6]} />
+          <mesh position={[0.2, 0.26, 0]} rotation={[0, 0, -0.4]}>
+            <sphereGeometry args={[0.1, 6, 6]} />
             <meshStandardMaterial color={c.type === 'golden' ? '#DAA520' : '#e8e0d0'} />
           </mesh>
-          <mesh position={[0, 0.42, 0.08]}>
-            <sphereGeometry args={[0.11, 10, 10]} />
+          <mesh position={[0, 0.44, 0.1]}>
+            <sphereGeometry args={[0.13, 10, 10]} />
             <meshStandardMaterial color={c.type === 'golden' ? '#FFD700' : '#f5f5f0'} />
           </mesh>
-          <mesh position={[0, 0.53, 0.08]}>
-            <sphereGeometry args={[0.045, 6, 6]} />
+          <mesh position={[0, 0.57, 0.1]}>
+            <sphereGeometry args={[0.05, 6, 6]} />
             <meshStandardMaterial color="#e74c3c" />
           </mesh>
-          <mesh position={[0, 0.35, 0.18]}>
-            <sphereGeometry args={[0.025, 6, 6]} />
+          <mesh position={[0, 0.37, 0.21]}>
+            <sphereGeometry args={[0.03, 6, 6]} />
             <meshStandardMaterial color="#e74c3c" />
           </mesh>
-          <mesh position={[0, 0.4, 0.2]} rotation={[Math.PI / 2, 0, 0]}>
-            <coneGeometry args={[0.025, 0.07, 6]} />
+          <mesh position={[0, 0.42, 0.23]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.03, 0.08, 6]} />
             <meshStandardMaterial color="#f39c12" />
           </mesh>
-          <mesh position={[-0.05, 0.44, 0.16]}>
-            <sphereGeometry args={[0.018, 6, 6]} />
+          <mesh position={[-0.06, 0.47, 0.18]}>
+            <sphereGeometry args={[0.02, 6, 6]} />
             <meshStandardMaterial color="#111" />
           </mesh>
-          <mesh position={[0.05, 0.44, 0.16]}>
-            <sphereGeometry args={[0.018, 6, 6]} />
+          <mesh position={[0.06, 0.47, 0.18]}>
+            <sphereGeometry args={[0.02, 6, 6]} />
             <meshStandardMaterial color="#111" />
           </mesh>
-          <mesh position={[-0.06, 0.03, 0.02]}>
-            <boxGeometry args={[0.035, 0.05, 0.08]} />
+          <mesh position={[-0.07, 0.03, 0.02]}>
+            <boxGeometry args={[0.04, 0.06, 0.1]} />
             <meshStandardMaterial color="#e67e22" />
           </mesh>
-          <mesh position={[0.06, 0.03, 0.02]}>
-            <boxGeometry args={[0.035, 0.05, 0.08]} />
+          <mesh position={[0.07, 0.03, 0.02]}>
+            <boxGeometry args={[0.04, 0.06, 0.1]} />
             <meshStandardMaterial color="#e67e22" />
           </mesh>
-          {c.type === 'fast' && (
-            <mesh position={[0, 0.55, -0.05]}>
-              <coneGeometry args={[0.04, 0.12, 4]} />
-              <meshStandardMaterial color="#3498db" emissive="#3498db" emissiveIntensity={0.4} />
-            </mesh>
-          )}
         </group>
       ))}
 
       {/* Luck Boxes */}
       {config.mode === 'luck' && luckBoxes.current.map((box, i) => (
         <mesh key={`lb-${i}`} ref={el => { luckBoxRefs.current[i] = el; }}>
-          <boxGeometry args={[0.5, 0.5, 0.5]} />
+          <boxGeometry args={[0.6, 0.6, 0.6]} />
           <meshStandardMaterial
             color={box.type === 'speed' ? '#3498db' : box.type === 'lose' ? '#e74c3c' : box.type === 'freeze' ? '#00bcd4' : '#f1c40f'}
             emissive={box.type === 'speed' ? '#3498db' : box.type === 'lose' ? '#e74c3c' : box.type === 'freeze' ? '#00bcd4' : '#f1c40f'}
@@ -1010,7 +1037,7 @@ export default function GameWorld({
     <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a' }}>
       <Canvas
         shadows
-        camera={{ position: [0, 28, 16], fov: 50, near: 0.1, far: 100 }}
+        camera={{ position: [0, 35, 20], fov: 50, near: 0.1, far: 120 }}
         onCreated={({ camera }) => camera.lookAt(0, 0, 0)}
       >
         <SceneContent
