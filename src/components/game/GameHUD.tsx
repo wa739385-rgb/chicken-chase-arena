@@ -1,4 +1,4 @@
-import { HudData, GAME_MODES, GameMode } from '@/types/game';
+import { HudData, GAME_MODES, GameMode, ABILITY_NAMES } from '@/types/game';
 
 interface GameHUDProps {
   hudData: HudData;
