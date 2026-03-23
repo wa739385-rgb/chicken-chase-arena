@@ -78,7 +78,7 @@ export default function GameHUD({ hudData, timeLeft, mode, gameOver }: GameHUDPr
               ? 'bg-accent text-accent-foreground scale-110'
               : 'bg-muted text-muted-foreground'
           }`}>
-            ⚡ {hudData.abilityReady ? 'مسافة = سرعة!' : `${hudData.abilityCooldown}ث`}
+            ⚡ {hudData.abilityReady ? `مسافة = ${hudData.abilityType ? ABILITY_NAMES[hudData.abilityType] : 'قدرة'}!` : `${hudData.abilityCooldown}ث`}
           </div>
         </div>
       )}
