@@ -19,6 +19,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [botCount, setBotCount] = useState(3);
 
   const handleCreate = () => {
     const code = generateRoomCode();
@@ -39,7 +40,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
       roomCode: roomCode || generateRoomCode(),
       playerName: playerName || 'لاعب',
       maxTime: DEFAULT_GAME_TIME,
-      botCount: 3,
+      botCount,
     });
   };
 
@@ -98,19 +99,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
             <Button onClick={() => setView('join')}
               variant="outline"
               className="w-full text-lg font-cairo font-bold h-14 rounded-xl">
-              🔗 الانضمام برمز
-            </Button>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-card px-3 text-sm text-muted-foreground font-cairo">أو</span>
-              </div>
-            </div>
-            <Button onClick={handleStart}
-              className="w-full text-base font-cairo font-bold h-12 rounded-xl bg-primary hover:bg-primary/90">
-              🎮 لعب سريع مع بوتات
+              🔗 الانضمام برمز أو رابط
             </Button>
           </div>
         )}
@@ -151,6 +140,9 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
                 style={{ color: copied ? '#2ecc71' : '#f1c40f' }}>
                 {copied ? '✅ تم النسخ!' : '📋 نسخ رابط الدعوة'}
               </button>
+              <p className="text-xs font-cairo text-muted-foreground mt-1">
+                شارك الرابط مع أصدقائك للانضمام مباشرة
+              </p>
             </div>
 
             {/* Mode Selection */}
@@ -175,6 +167,29 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
               </div>
             </div>
 
+            {/* Bot count */}
+            <div>
+              <h3 className="text-base font-cairo font-black text-foreground mb-2">🤖 عدد البوتات (لتعبئة الأماكن)</h3>
+              <div className="flex gap-2">
+                {[0, 1, 2, 3].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setBotCount(n)}
+                    className={`flex-1 py-2 rounded-xl font-cairo font-bold text-sm transition-all border ${
+                      botCount === n
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-transparent bg-muted/50 text-muted-foreground'
+                    }`}
+                  >
+                    {n === 0 ? 'بدون' : `${n} بوت`}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs font-cairo text-muted-foreground mt-1">
+                أضف بوتات لو مافي أشخاص كافيين
+              </p>
+            </div>
+
             {/* Players */}
             <div>
               <h3 className="text-base font-cairo font-black text-foreground mb-2">👥 اللاعبون</h3>
@@ -183,9 +198,9 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
                   style={{ background: 'rgba(231,76,60,0.15)', color: '#c0392b' }}>
                   👤 {playerName || 'أنت'}
                 </div>
-                {[1, 2, 3].map(i => (
+                {Array.from({ length: botCount }).map((_, i) => (
                   <div key={i} className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-xl text-sm font-cairo text-muted-foreground">
-                    🤖 بوت {i}
+                    🤖 بوت {i + 1}
                   </div>
                 ))}
               </div>
