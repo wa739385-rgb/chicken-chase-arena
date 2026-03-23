@@ -11,32 +11,52 @@ export default function GameHUD({ hudData, timeLeft, mode, gameOver }: GameHUDPr
   const modeInfo = GAME_MODES.find(m => m.id === mode);
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
+  const sorted = [...hudData.scores].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="absolute inset-0 pointer-events-none" dir="rtl">
-      {/* Timer */}
-      <div className="flex justify-center mt-4">
-        <div className="bg-foreground/90 text-primary-foreground px-6 py-2 rounded-xl flex items-center gap-4 text-xl font-cairo font-bold shadow-lg">
-          <span className="text-accent">{hudData.scores[0]?.score ?? 0}</span>
-          <span className="bg-background/20 px-4 py-1 rounded-lg font-mono">
+    <div className="absolute inset-0 pointer-events-none font-cairo" dir="rtl">
+      {/* Top Bar */}
+      <div className="flex justify-center mt-3">
+        <div className="bg-foreground/85 backdrop-blur-sm text-primary-foreground px-5 py-2 rounded-2xl flex items-center gap-3 text-lg font-bold shadow-xl border border-primary-foreground/10">
+          {hudData.scores[0] && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: hudData.scores[0].color }} />
+              <span>{hudData.scores[0].score}</span>
+            </div>
+          )}
+          <div className="bg-background/20 px-4 py-1 rounded-xl font-mono text-xl tabular-nums">
             {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-          </span>
-          <span className="text-farm-sky">{hudData.scores[1]?.score ?? 0}</span>
+          </div>
+          {hudData.scores[1] && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: hudData.scores[1].color }} />
+              <span>{hudData.scores[1].score}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Mode info */}
-      <div className="absolute top-16 left-1/2 -translate-x-1/2">
-        <div className="bg-foreground/70 text-primary-foreground px-4 py-1 rounded-lg text-sm font-cairo">
+      {/* Mode Badge */}
+      <div className="flex justify-center mt-2">
+        <div className="bg-primary/80 text-primary-foreground px-3 py-0.5 rounded-full text-xs font-bold">
           {modeInfo?.icon} {modeInfo?.name}
         </div>
       </div>
 
-      {/* Carried chickens */}
-      {hudData.localCarried > 0 && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <div className="bg-accent text-accent-foreground px-6 py-3 rounded-xl text-lg font-cairo font-bold shadow-lg animate-bounce">
-            🐔 تحمل {hudData.localCarried} فرخة — عُد لقاعدتك!
+      {/* Notification */}
+      {hudData.modeInfo && (
+        <div className="flex justify-center mt-3">
+          <div className="bg-accent text-accent-foreground px-5 py-2 rounded-xl text-base font-bold shadow-lg animate-bounce">
+            {hudData.modeInfo}
+          </div>
+        </div>
+      )}
+
+      {/* Carried indicator */}
+      {hudData.localCarried > 0 && !hudData.modeInfo && (
+        <div className="flex justify-center mt-3">
+          <div className="bg-accent/90 text-accent-foreground px-5 py-2 rounded-xl text-base font-bold shadow-lg">
+            🐔 تحمل فرخة! عُد لقاعدتك 🏠
           </div>
         </div>
       )}
@@ -44,58 +64,68 @@ export default function GameHUD({ hudData, timeLeft, mode, gameOver }: GameHUDPr
       {/* Challenge text */}
       {hudData.challengeText && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2">
-          <div className="bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm font-cairo font-bold animate-pulse">
+          <div className="bg-destructive/90 text-destructive-foreground px-4 py-2 rounded-xl text-sm font-bold animate-pulse shadow-lg">
             🎯 {hudData.challengeText}
           </div>
         </div>
       )}
 
-      {/* Ability indicator */}
+      {/* Ability */}
       {hudData.abilityReady !== undefined && (
-        <div className="absolute bottom-8 right-8 pointer-events-auto">
-          <div className={`px-4 py-3 rounded-xl text-sm font-cairo font-bold shadow-lg ${
-            hudData.abilityReady 
-              ? 'bg-primary text-primary-foreground cursor-pointer' 
+        <div className="absolute bottom-6 right-6 pointer-events-auto">
+          <div className={`px-4 py-3 rounded-xl font-bold shadow-xl transition-all ${
+            hudData.abilityReady
+              ? 'bg-accent text-accent-foreground scale-110'
               : 'bg-muted text-muted-foreground'
           }`}>
-            ⚡ {hudData.abilityReady ? 'اضغط مسافة' : `انتظر ${hudData.abilityCooldown}ث`}
+            ⚡ {hudData.abilityReady ? 'مسافة = سرعة!' : `${hudData.abilityCooldown}ث`}
           </div>
         </div>
       )}
 
       {/* Scoreboard */}
       <div className="absolute top-4 right-4 space-y-1">
-        {hudData.scores.map((s, i) => (
-          <div key={i} className="flex items-center gap-2 bg-foreground/70 text-primary-foreground px-3 py-1 rounded-lg text-sm font-cairo">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }} />
+        {sorted.map((s, i) => (
+          <div key={s.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold shadow ${
+            i === 0 ? 'bg-accent/90 text-accent-foreground' : 'bg-foreground/70 text-primary-foreground'
+          }`}>
+            <span className="text-xs opacity-60">#{i + 1}</span>
+            <div className="w-3 h-3 rounded-full border border-primary-foreground/30" style={{ backgroundColor: s.color }} />
             <span>{s.name}</span>
-            <span className="font-bold mr-auto">{s.score}</span>
+            <span className="mr-auto tabular-nums">{s.score}</span>
           </div>
         ))}
       </div>
 
-      {/* Controls hint */}
-      <div className="absolute bottom-4 left-4">
-        <div className="bg-foreground/50 text-primary-foreground px-3 py-1 rounded-lg text-xs font-cairo">
-          WASD أو الأسهم للحركة
+      {/* Controls */}
+      <div className="absolute bottom-3 left-3">
+        <div className="bg-foreground/40 text-primary-foreground px-3 py-1 rounded-lg text-xs">
+          ⌨️ WASD / الأسهم للحركة
         </div>
       </div>
 
-      {/* Game Over overlay */}
+      {/* Game Over */}
       {gameOver && (
-        <div className="absolute inset-0 bg-foreground/60 flex items-center justify-center pointer-events-auto">
-          <div className="bg-card p-8 rounded-2xl text-center shadow-2xl">
-            <h2 className="text-3xl font-cairo font-black text-accent mb-4">🏆 انتهت اللعبة!</h2>
-            <div className="space-y-2 mb-6">
-              {[...hudData.scores].sort((a, b) => b.score - a.score).map((s, i) => (
-                <div key={i} className="flex items-center gap-3 text-lg font-cairo">
-                  <span className="font-bold text-muted-foreground">#{i + 1}</span>
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: s.color }} />
-                  <span className="text-foreground">{s.name}</span>
-                  <span className="font-bold text-primary mr-auto">{s.score}</span>
+        <div className="absolute inset-0 bg-foreground/70 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
+          <div className="bg-card p-8 rounded-3xl text-center shadow-2xl max-w-sm w-full mx-4 border border-border">
+            <div className="text-5xl mb-3">🏆</div>
+            <h2 className="text-3xl font-black text-accent mb-1">انتهت اللعبة!</h2>
+            <p className="text-muted-foreground mb-5">
+              الفائز: <span className="font-bold text-foreground">{sorted[0]?.name}</span> بـ {sorted[0]?.score} نقطة
+            </p>
+            <div className="space-y-2 mb-4">
+              {sorted.map((s, i) => (
+                <div key={s.id} className={`flex items-center gap-3 p-3 rounded-xl ${
+                  i === 0 ? 'bg-accent/20 border border-accent/30' : 'bg-muted/50'
+                }`}>
+                  <span className="text-2xl">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'}</span>
+                  <div className="w-5 h-5 rounded-full" style={{ backgroundColor: s.color }} />
+                  <span className="font-bold text-foreground">{s.name}</span>
+                  <span className="font-black text-primary mr-auto text-lg">{s.score}</span>
                 </div>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground">العودة للقائمة خلال ثوانٍ...</p>
           </div>
         </div>
       )}
