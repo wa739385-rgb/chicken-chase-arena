@@ -1,16 +1,29 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useEffect } from 'react';
+import { GameConfig, GamePhase, PlayerScore, DEFAULT_GAME_TIME } from '@/types/game';
+import MainMenu from '@/components/menu/MainMenu';
+import GameWorld from '@/components/game/GameWorld';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
-  return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
-    </div>
-  );
-};
+export default function Index() {
+  const [phase, setPhase] = useState<GamePhase>('menu');
+  const [config, setConfig] = useState<GameConfig | null>(null);
+  const [finalScores, setFinalScores] = useState<PlayerScore[]>([]);
 
-const Index = PlaceholderIndex;
+  // Check for room code in URL
+  const urlRoom = new URLSearchParams(window.location.search).get('room') || undefined;
 
-export default Index;
+  const handleStartGame = (cfg: GameConfig) => {
+    setConfig(cfg);
+    setPhase('playing');
+  };
+
+  const handleGameEnd = (scores: PlayerScore[]) => {
+    setFinalScores(scores);
+    setPhase('menu');
+  };
+
+  if (phase === 'playing' && config) {
+    return <GameWorld config={config} onGameEnd={handleGameEnd} />;
+  }
+
+  return <MainMenu onStartGame={handleStartGame} initialRoomCode={urlRoom} />;
+}
