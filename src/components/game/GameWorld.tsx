@@ -130,14 +130,17 @@ function Ground() {
 }
 
 function BaseZone({ position, color, depositedCount }: { position: [number, number, number]; color: string; depositedCount: number }) {
-  // Show deposited chickens inside the fence
+  // Show deposited chickens inside the fence, scale down if many
   const chickenPositions: [number, number][] = [];
+  const maxPerRow = Math.max(4, Math.ceil(Math.sqrt(depositedCount)));
+  const chickenScale = depositedCount > 12 ? Math.max(0.4, 12 / depositedCount) : 1;
+  const spacing = (BASE_SIZE * 0.6) / maxPerRow;
   for (let i = 0; i < depositedCount; i++) {
-    const row = Math.floor(i / 4);
-    const col = i % 4;
+    const row = Math.floor(i / maxPerRow);
+    const col = i % maxPerRow;
     chickenPositions.push([
-      -BASE_SIZE * 0.3 + col * (BASE_SIZE * 0.2),
-      -BASE_SIZE * 0.3 + row * (BASE_SIZE * 0.2),
+      -BASE_SIZE * 0.25 + col * spacing,
+      -BASE_SIZE * 0.25 + row * spacing,
     ]);
   }
 
@@ -185,7 +188,7 @@ function BaseZone({ position, color, depositedCount }: { position: [number, numb
       </mesh>
       {/* Deposited chickens visible in the base */}
       {chickenPositions.map(([cx, cz], idx) => (
-        <group key={`dep-${idx}`} position={[cx, 0, cz]}>
+        <group key={`dep-${idx}`} position={[cx, 0, cz]} scale={[chickenScale, chickenScale, chickenScale]}>
           <mesh position={[0, 0.18, 0]}>
             <sphereGeometry args={[0.14, 8, 8]} />
             <meshStandardMaterial color="#f5f5f0" />
@@ -259,8 +262,8 @@ function SceneContent({
   }, []);
 
   useEffect(() => {
-    // Wider camera view
-    camera.position.set(0, 35, 20);
+    // Camera closer so players can see walls
+    camera.position.set(0, 22, 14);
     camera.lookAt(0, 0, 0);
   }, [camera]);
 
@@ -419,6 +422,15 @@ function SceneContent({
       } else {
         chicken.x += (cdx / cd) * chicken.speed * delta;
         chicken.z += (cdz / cd) * chicken.speed * delta;
+      }
+      // Keep chickens inside arena
+      const chickenDist = Math.sqrt(chicken.x * chicken.x + chicken.z * chicken.z);
+      if (chickenDist > ARENA_RADIUS - 0.5) {
+        const scale = (ARENA_RADIUS - 0.5) / chickenDist;
+        chicken.x *= scale;
+        chicken.z *= scale;
+        const [tx, tz] = randomInArena();
+        chicken.targetX = tx; chicken.targetZ = tz;
       }
 
       const mesh = chickenGroupRefs.current[i];
@@ -766,7 +778,23 @@ function SceneContent({
       challengeTimer.current += delta;
       if (challengeTimer.current > 30) {
         challengeTimer.current = 0;
-        currentChallenge.current = (currentChallenge.current + 1) % CHALLENGES.length;
+        currentChallenge.current = Math.floor(Math.random() * CHALLENGES.length);
+        const challenge = CHALLENGES[currentChallenge.current];
+        showNotification(`🎯 تحدي جديد: ${challenge}`);
+        
+        // Apply challenge effects
+        switch (currentChallenge.current) {
+          case 2: // Dark map - handled by fog in render
+            break;
+          case 4: // Slow speed
+            speedMult.current = 0.5;
+            setTimeout(() => { speedMult.current = 1; }, 30000);
+            break;
+          case 3: // Double points
+            doublePoints.current = true;
+            setTimeout(() => { doublePoints.current = false; }, 30000);
+            break;
+        }
       }
     }
 
@@ -1037,7 +1065,7 @@ export default function GameWorld({
     <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a' }}>
       <Canvas
         shadows
-        camera={{ position: [0, 35, 20], fov: 50, near: 0.1, far: 120 }}
+        camera={{ position: [0, 22, 14], fov: 50, near: 0.1, far: 120 }}
         onCreated={({ camera }) => camera.lookAt(0, 0, 0)}
       >
         <SceneContent

@@ -1,23 +1,26 @@
-import { useState, useEffect } from 'react';
-import { GameConfig, GamePhase, PlayerScore, DEFAULT_GAME_TIME } from '@/types/game';
+import { useState } from 'react';
+import { GameConfig, GamePhase, PlayerScore } from '@/types/game';
 import MainMenu from '@/components/menu/MainMenu';
 import GameWorld from '@/components/game/GameWorld';
 
 export default function Index() {
   const [phase, setPhase] = useState<GamePhase>('menu');
   const [config, setConfig] = useState<GameConfig | null>(null);
-  const [finalScores, setFinalScores] = useState<PlayerScore[]>([]);
 
   // Check for room code in URL
-  const urlRoom = new URLSearchParams(window.location.search).get('room') || undefined;
+  const params = new URLSearchParams(window.location.search);
+  const urlRoom = params.get('room') || undefined;
 
   const handleStartGame = (cfg: GameConfig) => {
     setConfig(cfg);
     setPhase('playing');
+    // Clean URL after joining
+    if (window.location.search) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   };
 
-  const handleGameEnd = (scores: PlayerScore[]) => {
-    setFinalScores(scores);
+  const handleGameEnd = (_scores: PlayerScore[]) => {
     setPhase('menu');
   };
 
