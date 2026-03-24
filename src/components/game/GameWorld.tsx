@@ -2,13 +2,13 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
-  GameConfig, HudData, PlayerScore, AbilityType,
+  GameConfig, HudData, PlayerScore, AbilityType, MapConfig,
   PLAYER_COLORS, PLAYER_NAMES_AR, BASE_POSITIONS, TEAM_BASE_POSITIONS,
   ARENA_RADIUS, MAP_EXTENT, BASE_SIZE,
   CHICKEN_CATCH_DIST, BASE_DEPOSIT_DIST,
   MAX_CHICKENS, PLAYER_SPEED,
   CHICKEN_SPEED_NORMAL,
-  CHALLENGES, ChickenType,
+  CHALLENGES, ChickenType, GAME_MAPS,
 } from '@/types/game';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import GameHUD from './GameHUD';
@@ -84,20 +84,20 @@ function getBotBaseIndex(botIndex: number, mode: string): number {
 }
 
 // ─── 3D Sub-components ───
-function Ground() {
+function Ground({ mapConfig }: { mapConfig: MapConfig }) {
   return (
     <>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
         <planeGeometry args={[55, 55]} />
-        <meshStandardMaterial color="#4a8c3f" />
+        <meshStandardMaterial color={mapConfig.groundColor} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <circleGeometry args={[ARENA_RADIUS + 2, 32]} />
-        <meshStandardMaterial color="#9a7030" />
+        <meshStandardMaterial color={mapConfig.arenaColor} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
         <circleGeometry args={[ARENA_RADIUS, 32]} />
-        <meshStandardMaterial color="#8B6B28" />
+        <meshStandardMaterial color={mapConfig.arenaBorderColor} />
       </mesh>
       {[...Array(8)].map((_, i) => {
         const a = (i / 8) * Math.PI * 2 + 0.3;
@@ -105,7 +105,7 @@ function Ground() {
         return (
           <mesh key={i} position={[Math.cos(a) * r, 0.01, Math.sin(a) * r]} rotation={[-Math.PI / 2, a, 0]}>
             <circleGeometry args={[0.5, 6]} />
-            <meshStandardMaterial color="#6b8e23" transparent opacity={0.4} />
+            <meshStandardMaterial color={mapConfig.grassPatches} transparent opacity={0.4} />
           </mesh>
         );
       })}
@@ -116,13 +116,48 @@ function Ground() {
           <group key={`tree-${i}`} position={[Math.cos(a) * r, 0, Math.sin(a) * r]}>
             <mesh position={[0, 0.7, 0]}>
               <sphereGeometry args={[1 + Math.random() * 0.5, 8, 8]} />
-              <meshStandardMaterial color={i % 2 === 0 ? '#3a7d32' : '#2d6b28'} />
+              <meshStandardMaterial color={i % 2 === 0 ? mapConfig.treeColor1 : mapConfig.treeColor2} />
             </mesh>
             <mesh position={[0, 0.15, 0]}>
               <cylinderGeometry args={[0.12, 0.14, 0.3, 6]} />
-              <meshStandardMaterial color="#6b4226" />
+              <meshStandardMaterial color={mapConfig.trunkColor} />
             </mesh>
           </group>
+        );
+      })}
+      {/* Desert cacti or snow mounds */}
+      {mapConfig.id === 'desert' && [...Array(6)].map((_, i) => {
+        const a = (i / 6) * Math.PI * 2 + 0.5;
+        const r = 4 + Math.random() * 6;
+        return (
+          <group key={`cactus-${i}`} position={[Math.cos(a) * r, 0, Math.sin(a) * r]}>
+            <mesh position={[0, 0.5, 0]}>
+              <cylinderGeometry args={[0.12, 0.15, 1.0, 8]} />
+              <meshStandardMaterial color="#3a6b23" />
+            </mesh>
+            <mesh position={[0.2, 0.6, 0]} rotation={[0, 0, -0.5]}>
+              <cylinderGeometry args={[0.06, 0.08, 0.4, 6]} />
+              <meshStandardMaterial color="#3a6b23" />
+            </mesh>
+          </group>
+        );
+      })}
+      {mapConfig.id === 'snow' && [...Array(8)].map((_, i) => {
+        const a = (i / 8) * Math.PI * 2 + 0.2;
+        const r = 2 + Math.random() * 8;
+        return (
+          <mesh key={`snow-${i}`} position={[Math.cos(a) * r, 0.1, Math.sin(a) * r]}>
+            <sphereGeometry args={[0.4 + Math.random() * 0.3, 8, 6]} />
+            <meshStandardMaterial color="#f0f5ff" />
+          </mesh>
+        );
+      })}
+      {mapConfig.id === 'night' && [...Array(5)].map((_, i) => {
+        const a = (i / 5) * Math.PI * 2;
+        const r = 3 + Math.random() * 6;
+        return (
+          <pointLight key={`light-${i}`} position={[Math.cos(a) * r, 1.5, Math.sin(a) * r]}
+            color="#ffe0a0" intensity={0.6} distance={5} />
         );
       })}
     </>
@@ -220,6 +255,7 @@ function SceneContent({
   keysRef: React.RefObject<Set<string>>;
 }) {
   const { camera } = useThree();
+  const mapConfig = GAME_MAPS.find(m => m.id === config.mapId) || GAME_MAPS[0];
   const bases = getBasesForMode(config.mode, config.botCount);
   const playerBaseIdx = config.mode === 'teams' ? 0 : 0;
   const playerPos = useRef({ x: bases[playerBaseIdx][0], z: bases[playerBaseIdx][2] });
@@ -833,16 +869,19 @@ function SceneContent({
 
   return (
     <>
-      <ambientLight intensity={0.65} />
-      <directionalLight position={[10, 25, 10]} intensity={1} castShadow />
-      <directionalLight position={[-8, 18, -8]} intensity={0.25} />
-      <hemisphereLight args={['#87ceeb', '#4a8c3f', 0.3]} />
+      <ambientLight intensity={mapConfig.ambientIntensity} />
+      <directionalLight position={[10, 25, 10]} intensity={mapConfig.id === 'night' ? 0.3 : 1} castShadow />
+      <directionalLight position={[-8, 18, -8]} intensity={mapConfig.id === 'night' ? 0.1 : 0.25} />
+      <hemisphereLight args={[mapConfig.skyColor, mapConfig.groundColor, 0.3]} />
 
+      {mapConfig.fogColor && (
+        <fog attach="fog" args={[mapConfig.fogColor, mapConfig.fogNear || 20, mapConfig.fogFar || 60]} />
+      )}
       {config.mode === 'challenges' && currentChallenge.current === 2 && (
         <fog attach="fog" args={['#1a1a1a', 5, 18]} />
       )}
 
-      <Ground />
+      <Ground mapConfig={mapConfig} />
 
       {/* Bases */}
       {bases.map((p, i) => (

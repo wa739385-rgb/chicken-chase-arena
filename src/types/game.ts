@@ -2,6 +2,54 @@ export type GameMode = 'normal' | 'theft' | 'invisible' | 'king' | 'challenges' 
 export type GamePhase = 'menu' | 'lobby' | 'playing' | 'results';
 export type ChickenType = 'normal' | 'fast' | 'teleport' | 'explosive' | 'golden';
 export type AbilityType = 'speed' | 'magnet' | 'invisible' | 'freeze';
+export type GameMapId = 'farm' | 'desert' | 'snow' | 'night';
+
+export interface MapConfig {
+  id: GameMapId;
+  name: string;
+  icon: string;
+  groundColor: string;
+  arenaColor: string;
+  arenaBorderColor: string;
+  treeColor1: string;
+  treeColor2: string;
+  trunkColor: string;
+  skyColor: string;
+  ambientIntensity: number;
+  fogColor?: string;
+  fogNear?: number;
+  fogFar?: number;
+  grassPatches: string;
+}
+
+export const GAME_MAPS: MapConfig[] = [
+  {
+    id: 'farm', name: 'المزرعة', icon: '🌾',
+    groundColor: '#4a8c3f', arenaColor: '#9a7030', arenaBorderColor: '#8B6B28',
+    treeColor1: '#3a7d32', treeColor2: '#2d6b28', trunkColor: '#6b4226',
+    skyColor: '#87ceeb', ambientIntensity: 0.65, grassPatches: '#6b8e23',
+  },
+  {
+    id: 'desert', name: 'الصحراء', icon: '🏜️',
+    groundColor: '#c2a645', arenaColor: '#d4a537', arenaBorderColor: '#b8912e',
+    treeColor1: '#6b8c23', treeColor2: '#8b7d3a', trunkColor: '#8b6914',
+    skyColor: '#f0d58c', ambientIntensity: 0.85, grassPatches: '#a89040',
+  },
+  {
+    id: 'snow', name: 'الثلج', icon: '❄️',
+    groundColor: '#e8eef5', arenaColor: '#c8d8e8', arenaBorderColor: '#b0c4d8',
+    treeColor1: '#2d5a3e', treeColor2: '#1a4a30', trunkColor: '#5a4020',
+    skyColor: '#b8c8d8', ambientIntensity: 0.75, grassPatches: '#d0dce8',
+    fogColor: '#c0d0e0', fogNear: 20, fogFar: 60,
+  },
+  {
+    id: 'night', name: 'الليل', icon: '🌙',
+    groundColor: '#1a2a1a', arenaColor: '#2a3a20', arenaBorderColor: '#223018',
+    treeColor1: '#1a3a22', treeColor2: '#122a18', trunkColor: '#3a2a10',
+    skyColor: '#0a0a1a', ambientIntensity: 0.3, grassPatches: '#2a3a1a',
+    fogColor: '#0a0a1a', fogNear: 12, fogFar: 35,
+  },
+];
 
 export interface GameConfig {
   mode: GameMode;
@@ -9,6 +57,7 @@ export interface GameConfig {
   playerName: string;
   maxTime: number;
   botCount: number;
+  mapId: GameMapId;
 }
 
 export interface PlayerScore {
