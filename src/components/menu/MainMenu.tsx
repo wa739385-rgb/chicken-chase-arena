@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GameConfig, GameMode, GAME_MODES, DEFAULT_GAME_TIME } from '@/types/game';
+import { GameConfig, GameMode, GameMapId, GAME_MODES, GAME_MAPS, DEFAULT_GAME_TIME } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -17,6 +17,7 @@ const MAX_PLAYERS = 4;
 export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps) {
   const [view, setView] = useState<'main' | 'join' | 'lobby'>(initialRoomCode ? 'lobby' : 'main');
   const [selectedMode, setSelectedMode] = useState<GameMode>('normal');
+  const [selectedMap, setSelectedMap] = useState<GameMapId>('farm');
   const [roomCode, setRoomCode] = useState(initialRoomCode || '');
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -46,6 +47,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
       playerName: playerName || 'لاعب',
       maxTime: DEFAULT_GAME_TIME,
       botCount,
+      mapId: selectedMap,
     });
   };
 
