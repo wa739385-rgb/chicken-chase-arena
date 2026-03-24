@@ -259,8 +259,8 @@ function SceneContent({
   }, []);
 
   useEffect(() => {
-    // Wider camera view
-    camera.position.set(0, 35, 20);
+    // Camera closer so players can see walls
+    camera.position.set(0, 22, 14);
     camera.lookAt(0, 0, 0);
   }, [camera]);
 
