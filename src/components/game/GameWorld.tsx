@@ -255,6 +255,7 @@ function SceneContent({
   keysRef: React.RefObject<Set<string>>;
 }) {
   const { camera } = useThree();
+  const mapConfig = GAME_MAPS.find(m => m.id === config.mapId) || GAME_MAPS[0];
   const bases = getBasesForMode(config.mode, config.botCount);
   const playerBaseIdx = config.mode === 'teams' ? 0 : 0;
   const playerPos = useRef({ x: bases[playerBaseIdx][0], z: bases[playerBaseIdx][2] });
