@@ -12,6 +12,8 @@ function generateRoomCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
+const MAX_PLAYERS = 4;
+
 export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps) {
   const [view, setView] = useState<'main' | 'join' | 'lobby'>(initialRoomCode ? 'lobby' : 'main');
   const [selectedMode, setSelectedMode] = useState<GameMode>('normal');
@@ -19,7 +21,10 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [humanPlayers, setHumanPlayers] = useState(1);
   const [botCount, setBotCount] = useState(3);
+
+  const remainingSlots = MAX_PLAYERS - humanPlayers;
 
   const handleCreate = () => {
     const code = generateRoomCode();
@@ -54,7 +59,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" dir="rtl"
-      style={{ background: 'linear-gradient(135deg, #2d6b28 0%, #1a4a15 40%, #0d3a0a 100%)' }}>
+      style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #16082a 40%, #0d0520 100%)' }}>
       
       {/* Decorative elements */}
       <div className="absolute inset-0 opacity-10">
@@ -64,7 +69,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
             transform: `rotate(${Math.random() * 360}deg)`,
             opacity: 0.3 + Math.random() * 0.4,
           }}>
-            {['🐔', '🌿', '🥚', '🌾', '🐣'][i % 5]}
+            {['🐔', '✨', '🥚', '⭐', '🐣'][i % 5]}
           </div>
         ))}
       </div>
@@ -77,19 +82,19 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
             style={{ color: '#FFD700', textShadow: '0 4px 20px rgba(255,215,0,0.4)' }}>
             صيد الفراخ
           </h1>
-          <p className="text-lg font-cairo font-bold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          <p className="text-lg font-cairo font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>
             من سيجمع أكثر؟ 🏆
           </p>
         </div>
 
         {view === 'main' && (
           <div className="rounded-3xl p-6 shadow-2xl space-y-3 border"
-            style={{ background: 'rgba(255,255,255,0.95)', borderColor: 'rgba(0,0,0,0.1)' }}>
+            style={{ background: 'rgba(30,15,50,0.92)', borderColor: 'rgba(160,100,255,0.2)' }}>
             <Input
               placeholder="اسمك في اللعبة..."
               value={playerName}
               onChange={e => setPlayerName(e.target.value)}
-              className="text-center text-lg font-cairo h-12 rounded-xl"
+              className="text-center text-lg font-cairo h-12 rounded-xl bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
             />
             <Button onClick={handleCreate}
               className="w-full text-lg font-cairo font-black h-14 rounded-xl shadow-lg"
@@ -98,7 +103,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
             </Button>
             <Button onClick={() => setView('join')}
               variant="outline"
-              className="w-full text-lg font-cairo font-bold h-14 rounded-xl">
+              className="w-full text-lg font-cairo font-bold h-14 rounded-xl border-primary/40 text-foreground hover:bg-primary/10">
               🔗 الانضمام برمز أو رابط
             </Button>
           </div>
@@ -106,13 +111,19 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
 
         {view === 'join' && (
           <div className="rounded-3xl p-6 shadow-2xl space-y-4 border"
-            style={{ background: 'rgba(255,255,255,0.95)', borderColor: 'rgba(0,0,0,0.1)' }}>
+            style={{ background: 'rgba(30,15,50,0.92)', borderColor: 'rgba(160,100,255,0.2)' }}>
             <h2 className="text-2xl font-cairo font-black text-center text-foreground">الانضمام لغرفة</h2>
+            <Input
+              placeholder="اسمك..."
+              value={playerName}
+              onChange={e => setPlayerName(e.target.value)}
+              className="text-center text-lg font-cairo h-12 rounded-xl bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+            />
             <Input
               placeholder="أدخل رمز الغرفة..."
               value={joinCode}
               onChange={e => setJoinCode(e.target.value.toUpperCase())}
-              className="text-center text-3xl font-mono tracking-[0.4em] h-16 rounded-xl"
+              className="text-center text-3xl font-mono tracking-[0.4em] h-16 rounded-xl bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
               maxLength={6}
             />
             <div className="flex gap-3">
@@ -121,7 +132,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
                 style={{ background: 'linear-gradient(135deg, #FFD700, #FFA000)', color: '#3a2a00' }}>
                 ✅ انضمام
               </Button>
-              <Button onClick={() => setView('main')} variant="outline" className="font-cairo h-14 rounded-xl px-6">
+              <Button onClick={() => setView('main')} variant="outline" className="font-cairo h-14 rounded-xl px-6 border-primary/40 text-foreground hover:bg-primary/10">
                 ↩️
               </Button>
             </div>
@@ -130,14 +141,24 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
 
         {view === 'lobby' && (
           <div className="rounded-3xl p-6 shadow-2xl space-y-5 border"
-            style={{ background: 'rgba(255,255,255,0.95)', borderColor: 'rgba(0,0,0,0.1)' }}>
+            style={{ background: 'rgba(30,15,50,0.92)', borderColor: 'rgba(160,100,255,0.2)' }}>
+            {/* Name input */}
+            {!playerName && (
+              <Input
+                placeholder="أدخل اسمك..."
+                value={playerName}
+                onChange={e => setPlayerName(e.target.value)}
+                className="text-center text-lg font-cairo h-12 rounded-xl bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+              />
+            )}
+
             {/* Room Code */}
-            <div className="text-center p-4 rounded-2xl" style={{ background: 'rgba(45,107,40,0.08)' }}>
+            <div className="text-center p-4 rounded-2xl" style={{ background: 'rgba(160,100,255,0.08)' }}>
               <p className="text-xs font-cairo text-muted-foreground mb-1">رمز الغرفة</p>
               <div className="text-4xl font-mono font-black tracking-[0.4em] text-primary">{roomCode}</div>
               <button onClick={copyLink}
                 className="mt-2 text-sm font-cairo font-bold transition-colors"
-                style={{ color: copied ? '#2ecc71' : '#f1c40f' }}>
+                style={{ color: copied ? '#2ecc71' : '#FFD700' }}>
                 {copied ? '✅ تم النسخ!' : '📋 نسخ رابط الدعوة'}
               </button>
               <p className="text-xs font-cairo text-muted-foreground mt-1">
@@ -158,7 +179,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
                         ? 'border-primary shadow-md scale-[1.02]'
                         : 'border-transparent hover:bg-muted/50'
                     }`}
-                    style={selectedMode === m.id ? { background: 'rgba(45,107,40,0.12)' } : {}}
+                    style={selectedMode === m.id ? { background: 'rgba(160,100,255,0.15)' } : {}}
                   >
                     <div className="font-bold text-sm text-foreground">{m.icon} {m.name}</div>
                     <div className="text-[10px] text-muted-foreground leading-tight">{m.desc}</div>
@@ -167,17 +188,17 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
               </div>
             </div>
 
-            {/* Bot count */}
+            {/* Bot count - dynamic based on remaining slots */}
             <div>
-              <h3 className="text-base font-cairo font-black text-foreground mb-2">🤖 عدد البوتات (لتعبئة الأماكن)</h3>
+              <h3 className="text-base font-cairo font-black text-foreground mb-2">🤖 بوتات لتعبئة الأماكن ({remainingSlots} مكان متبقي)</h3>
               <div className="flex gap-2">
-                {[0, 1, 2, 3].map(n => (
+                {Array.from({ length: remainingSlots + 1 }, (_, n) => n).map(n => (
                   <button
                     key={n}
                     onClick={() => setBotCount(n)}
                     className={`flex-1 py-2 rounded-xl font-cairo font-bold text-sm transition-all border ${
                       botCount === n
-                        ? 'border-primary bg-primary/10 text-primary'
+                        ? 'border-primary bg-primary/20 text-primary'
                         : 'border-transparent bg-muted/50 text-muted-foreground'
                     }`}
                   >
@@ -185,9 +206,6 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
                   </button>
                 ))}
               </div>
-              <p className="text-xs font-cairo text-muted-foreground mt-1">
-                أضف بوتات لو مافي أشخاص كافيين
-              </p>
             </div>
 
             {/* Players */}
@@ -195,7 +213,7 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
               <h3 className="text-base font-cairo font-black text-foreground mb-2">👥 اللاعبون</h3>
               <div className="flex flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-cairo font-bold"
-                  style={{ background: 'rgba(231,76,60,0.15)', color: '#c0392b' }}>
+                  style={{ background: 'rgba(231,76,60,0.2)', color: '#e74c3c' }}>
                   👤 {playerName || 'أنت'}
                 </div>
                 {Array.from({ length: botCount }).map((_, i) => (
@@ -208,11 +226,12 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
 
             <div className="flex gap-3">
               <Button onClick={handleStart}
-                className="flex-1 text-xl font-cairo font-black h-14 rounded-xl shadow-lg"
+                disabled={!playerName.trim()}
+                className="flex-1 text-xl font-cairo font-black h-14 rounded-xl shadow-lg disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, #FFD700, #FFA000)', color: '#3a2a00' }}>
                 🚀 ابدأ!
               </Button>
-              <Button onClick={() => setView('main')} variant="outline" className="font-cairo h-14 rounded-xl px-5">
+              <Button onClick={() => setView('main')} variant="outline" className="font-cairo h-14 rounded-xl px-5 border-primary/40 text-foreground hover:bg-primary/10">
                 ↩️
               </Button>
             </div>

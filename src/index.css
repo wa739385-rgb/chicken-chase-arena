@@ -2,45 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 120 25% 95%;
-    --foreground: 30 20% 15%;
-    --card: 40 30% 96%;
-    --card-foreground: 30 20% 15%;
-    --popover: 40 30% 96%;
-    --popover-foreground: 30 20% 15%;
-    --primary: 142 50% 36%;
+    --background: 260 30% 12%;
+    --foreground: 260 10% 90%;
+    --card: 260 25% 16%;
+    --card-foreground: 260 10% 90%;
+    --popover: 260 25% 16%;
+    --popover-foreground: 260 10% 90%;
+    --primary: 270 60% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 35 60% 52%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 120 15% 90%;
-    --muted-foreground: 30 10% 45%;
+    --secondary: 45 90% 55%;
+    --secondary-foreground: 30 20% 10%;
+    --muted: 260 20% 20%;
+    --muted-foreground: 260 10% 60%;
     --accent: 45 90% 55%;
-    --accent-foreground: 30 20% 15%;
+    --accent-foreground: 30 20% 10%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 120 15% 82%;
-    --input: 120 15% 82%;
-    --ring: 142 50% 36%;
+    --border: 260 20% 25%;
+    --input: 260 20% 25%;
+    --ring: 270 60% 55%;
     --radius: 0.75rem;
     --farm-green: 142 50% 36%;
     --farm-brown: 30 40% 30%;
     --farm-gold: 45 90% 55%;
     --farm-sky: 200 60% 70%;
     --farm-red: 0 72% 51%;
-    --sidebar-background: 120 20% 92%;
-    --sidebar-foreground: 30 20% 15%;
-    --sidebar-primary: 142 50% 36%;
+    --sidebar-background: 260 25% 14%;
+    --sidebar-foreground: 260 10% 90%;
+    --sidebar-primary: 270 60% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 120 15% 88%;
-    --sidebar-accent-foreground: 30 20% 15%;
-    --sidebar-border: 120 15% 82%;
-    --sidebar-ring: 142 50% 36%;
+    --sidebar-accent: 260 20% 22%;
+    --sidebar-accent-foreground: 260 10% 90%;
+    --sidebar-border: 260 20% 25%;
+    --sidebar-ring: 270 60% 55%;
   }
 }
 
