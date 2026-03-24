@@ -188,7 +188,7 @@ function BaseZone({ position, color, depositedCount }: { position: [number, numb
       </mesh>
       {/* Deposited chickens visible in the base */}
       {chickenPositions.map(([cx, cz], idx) => (
-        <group key={`dep-${idx}`} position={[cx, 0, cz]}>
+        <group key={`dep-${idx}`} position={[cx, 0, cz]} scale={[chickenScale, chickenScale, chickenScale]}>
           <mesh position={[0, 0.18, 0]}>
             <sphereGeometry args={[0.14, 8, 8]} />
             <meshStandardMaterial color="#f5f5f0" />
