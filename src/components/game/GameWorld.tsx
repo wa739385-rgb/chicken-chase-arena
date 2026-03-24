@@ -2,13 +2,13 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
-  GameConfig, HudData, PlayerScore, AbilityType,
+  GameConfig, HudData, PlayerScore, AbilityType, MapConfig,
   PLAYER_COLORS, PLAYER_NAMES_AR, BASE_POSITIONS, TEAM_BASE_POSITIONS,
   ARENA_RADIUS, MAP_EXTENT, BASE_SIZE,
   CHICKEN_CATCH_DIST, BASE_DEPOSIT_DIST,
   MAX_CHICKENS, PLAYER_SPEED,
   CHICKEN_SPEED_NORMAL,
-  CHALLENGES, ChickenType,
+  CHALLENGES, ChickenType, GAME_MAPS,
 } from '@/types/game';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import GameHUD from './GameHUD';
