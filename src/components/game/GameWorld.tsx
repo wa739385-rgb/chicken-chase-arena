@@ -420,6 +420,15 @@ function SceneContent({
         chicken.x += (cdx / cd) * chicken.speed * delta;
         chicken.z += (cdz / cd) * chicken.speed * delta;
       }
+      // Keep chickens inside arena
+      const chickenDist = Math.sqrt(chicken.x * chicken.x + chicken.z * chicken.z);
+      if (chickenDist > ARENA_RADIUS - 0.5) {
+        const scale = (ARENA_RADIUS - 0.5) / chickenDist;
+        chicken.x *= scale;
+        chicken.z *= scale;
+        const [tx, tz] = randomInArena();
+        chicken.targetX = tx; chicken.targetZ = tz;
+      }
 
       const mesh = chickenGroupRefs.current[i];
       if (mesh) {
