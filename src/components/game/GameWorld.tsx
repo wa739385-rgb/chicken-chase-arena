@@ -130,14 +130,17 @@ function Ground() {
 }
 
 function BaseZone({ position, color, depositedCount }: { position: [number, number, number]; color: string; depositedCount: number }) {
-  // Show deposited chickens inside the fence
+  // Show deposited chickens inside the fence, scale down if many
   const chickenPositions: [number, number][] = [];
+  const maxPerRow = Math.max(4, Math.ceil(Math.sqrt(depositedCount)));
+  const chickenScale = depositedCount > 12 ? Math.max(0.4, 12 / depositedCount) : 1;
+  const spacing = (BASE_SIZE * 0.6) / maxPerRow;
   for (let i = 0; i < depositedCount; i++) {
-    const row = Math.floor(i / 4);
-    const col = i % 4;
+    const row = Math.floor(i / maxPerRow);
+    const col = i % maxPerRow;
     chickenPositions.push([
-      -BASE_SIZE * 0.3 + col * (BASE_SIZE * 0.2),
-      -BASE_SIZE * 0.3 + row * (BASE_SIZE * 0.2),
+      -BASE_SIZE * 0.25 + col * spacing,
+      -BASE_SIZE * 0.25 + row * spacing,
     ]);
   }
 
