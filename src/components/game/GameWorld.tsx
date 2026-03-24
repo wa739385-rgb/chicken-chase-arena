@@ -869,16 +869,19 @@ function SceneContent({
 
   return (
     <>
-      <ambientLight intensity={0.65} />
-      <directionalLight position={[10, 25, 10]} intensity={1} castShadow />
-      <directionalLight position={[-8, 18, -8]} intensity={0.25} />
-      <hemisphereLight args={['#87ceeb', '#4a8c3f', 0.3]} />
+      <ambientLight intensity={mapConfig.ambientIntensity} />
+      <directionalLight position={[10, 25, 10]} intensity={mapConfig.id === 'night' ? 0.3 : 1} castShadow />
+      <directionalLight position={[-8, 18, -8]} intensity={mapConfig.id === 'night' ? 0.1 : 0.25} />
+      <hemisphereLight args={[mapConfig.skyColor, mapConfig.groundColor, 0.3]} />
 
+      {mapConfig.fogColor && (
+        <fog attach="fog" args={[mapConfig.fogColor, mapConfig.fogNear || 20, mapConfig.fogFar || 60]} />
+      )}
       {config.mode === 'challenges' && currentChallenge.current === 2 && (
         <fog attach="fog" args={['#1a1a1a', 5, 18]} />
       )}
 
-      <Ground />
+      <Ground mapConfig={mapConfig} />
 
       {/* Bases */}
       {bases.map((p, i) => (
