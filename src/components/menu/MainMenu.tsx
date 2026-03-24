@@ -190,6 +190,28 @@ export default function MainMenu({ onStartGame, initialRoomCode }: MainMenuProps
               </div>
             </div>
 
+            {/* Map Selection */}
+            <div>
+              <h3 className="text-base font-cairo font-black text-foreground mb-2">🗺️ اختر الخريطة</h3>
+              <div className="grid grid-cols-4 gap-1.5">
+                {GAME_MAPS.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setSelectedMap(m.id)}
+                    className={`p-2.5 rounded-xl text-center transition-all font-cairo border ${
+                      selectedMap === m.id
+                        ? 'border-primary shadow-md scale-[1.02]'
+                        : 'border-transparent hover:bg-muted/50'
+                    }`}
+                    style={selectedMap === m.id ? { background: 'rgba(160,100,255,0.15)' } : {}}
+                  >
+                    <div className="text-2xl mb-0.5">{m.icon}</div>
+                    <div className="font-bold text-xs text-foreground">{m.name}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Bot count - dynamic based on remaining slots */}
             <div>
               <h3 className="text-base font-cairo font-black text-foreground mb-2">🤖 بوتات لتعبئة الأماكن ({remainingSlots} مكان متبقي)</h3>
