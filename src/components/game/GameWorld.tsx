@@ -775,7 +775,23 @@ function SceneContent({
       challengeTimer.current += delta;
       if (challengeTimer.current > 30) {
         challengeTimer.current = 0;
-        currentChallenge.current = (currentChallenge.current + 1) % CHALLENGES.length;
+        currentChallenge.current = Math.floor(Math.random() * CHALLENGES.length);
+        const challenge = CHALLENGES[currentChallenge.current];
+        showNotification(`🎯 تحدي جديد: ${challenge}`);
+        
+        // Apply challenge effects
+        switch (currentChallenge.current) {
+          case 2: // Dark map - handled by fog in render
+            break;
+          case 4: // Slow speed
+            speedMult.current = 0.5;
+            setTimeout(() => { speedMult.current = 1; }, 30000);
+            break;
+          case 3: // Double points
+            doublePoints.current = true;
+            setTimeout(() => { doublePoints.current = false; }, 30000);
+            break;
+        }
       }
     }
 
