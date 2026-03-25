@@ -1091,12 +1091,15 @@ function SceneContent({
 
   return (
     <>
-      <ambientLight intensity={mapConfig.ambientIntensity} />
-      <directionalLight position={[10, 25, 10]} intensity={mapConfig.id === 'night' ? 0.3 : 1} castShadow />
-      <directionalLight position={[-8, 18, -8]} intensity={mapConfig.id === 'night' ? 0.1 : 0.25} />
-      <hemisphereLight args={[mapConfig.skyColor, mapConfig.groundColor, 0.3]} />
+      <ambientLight intensity={nightDarkness.current ? 0.05 : mapConfig.ambientIntensity} />
+      <directionalLight position={[10, 25, 10]} intensity={nightDarkness.current ? 0.02 : (mapConfig.id === 'night' ? 0.3 : 1)} castShadow />
+      <directionalLight position={[-8, 18, -8]} intensity={nightDarkness.current ? 0.01 : (mapConfig.id === 'night' ? 0.1 : 0.25)} />
+      <hemisphereLight args={[mapConfig.skyColor, mapConfig.groundColor, nightDarkness.current ? 0.02 : 0.3]} />
 
-      {mapConfig.fogColor && (
+      {nightDarkness.current && (
+        <fog attach="fog" args={['#000000', 2, 8]} />
+      )}
+      {!nightDarkness.current && mapConfig.fogColor && (
         <fog attach="fog" args={[mapConfig.fogColor, mapConfig.fogNear || 20, mapConfig.fogFar || 60]} />
       )}
       {config.mode === 'challenges' && currentChallenge.current === 2 && (
@@ -1104,6 +1107,29 @@ function SceneContent({
       )}
 
       <Ground mapConfig={mapConfig} />
+
+      {/* Volcano center lava pool */}
+      {config.mapId === 'volcano' && (
+        <group position={[0, 0, 0]}>
+          {/* Volcano cone */}
+          <mesh position={[0, 0.8, 0]}>
+            <coneGeometry args={[2.5, 1.8, 16]} />
+            <meshStandardMaterial color="#2a1510" roughness={0.95} />
+          </mesh>
+          {/* Lava pool on top */}
+          <mesh position={[0, 1.72, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[1.2, 16]} />
+            <meshStandardMaterial color="#ff4400" emissive="#ff2200" emissiveIntensity={1.2} />
+          </mesh>
+          {/* Glow */}
+          <pointLight position={[0, 2.5, 0]} color="#ff4400" intensity={2} distance={10} />
+          {/* Warning ring */}
+          <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[2.2, 2.8, 24]} />
+            <meshStandardMaterial color="#ff6600" emissive="#ff4400" emissiveIntensity={0.5} transparent opacity={0.4} />
+          </mesh>
+        </group>
+      )}
 
       {/* Bases */}
       {bases.map((p, i) => (
