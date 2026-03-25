@@ -7,17 +7,9 @@ export default function Index() {
   const [phase, setPhase] = useState<GamePhase>('menu');
   const [config, setConfig] = useState<GameConfig | null>(null);
 
-  // Check for room code in URL
-  const params = new URLSearchParams(window.location.search);
-  const urlRoom = params.get('room') || undefined;
-
   const handleStartGame = (cfg: GameConfig) => {
     setConfig(cfg);
     setPhase('playing');
-    // Clean URL after joining
-    if (window.location.search) {
-      window.history.replaceState({}, '', window.location.pathname);
-    }
   };
 
   const handleGameEnd = (_scores: PlayerScore[]) => {
@@ -28,5 +20,5 @@ export default function Index() {
     return <GameWorld config={config} onGameEnd={handleGameEnd} />;
   }
 
-  return <MainMenu onStartGame={handleStartGame} initialRoomCode={urlRoom} />;
+  return <MainMenu onStartGame={handleStartGame} />;
 }

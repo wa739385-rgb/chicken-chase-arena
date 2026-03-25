@@ -2,7 +2,7 @@ export type GameMode = 'normal' | 'theft' | 'invisible' | 'king' | 'challenges' 
 export type GamePhase = 'menu' | 'lobby' | 'playing' | 'results';
 export type ChickenType = 'normal' | 'fast' | 'teleport' | 'explosive' | 'golden';
 export type AbilityType = 'speed' | 'magnet' | 'invisible' | 'freeze';
-export type GameMapId = 'farm' | 'desert' | 'snow' | 'night';
+export type GameMapId = 'farm' | 'desert' | 'snow' | 'night' | 'volcano' | 'space';
 
 export interface MapConfig {
   id: GameMapId;
@@ -20,6 +20,8 @@ export interface MapConfig {
   fogNear?: number;
   fogFar?: number;
   grassPatches: string;
+  hasTrees: boolean;
+  decorationType: 'trees' | 'cacti' | 'snowballs' | 'rocks' | 'lava' | 'crystals';
 }
 
 export const GAME_MAPS: MapConfig[] = [
@@ -28,12 +30,14 @@ export const GAME_MAPS: MapConfig[] = [
     groundColor: '#4a8c3f', arenaColor: '#9a7030', arenaBorderColor: '#8B6B28',
     treeColor1: '#3a7d32', treeColor2: '#2d6b28', trunkColor: '#6b4226',
     skyColor: '#87ceeb', ambientIntensity: 0.65, grassPatches: '#6b8e23',
+    hasTrees: true, decorationType: 'trees',
   },
   {
     id: 'desert', name: 'الصحراء', icon: '🏜️',
     groundColor: '#c2a645', arenaColor: '#d4a537', arenaBorderColor: '#b8912e',
     treeColor1: '#6b8c23', treeColor2: '#8b7d3a', trunkColor: '#8b6914',
     skyColor: '#f0d58c', ambientIntensity: 0.85, grassPatches: '#a89040',
+    hasTrees: false, decorationType: 'cacti',
   },
   {
     id: 'snow', name: 'الثلج', icon: '❄️',
@@ -41,6 +45,7 @@ export const GAME_MAPS: MapConfig[] = [
     treeColor1: '#2d5a3e', treeColor2: '#1a4a30', trunkColor: '#5a4020',
     skyColor: '#b8c8d8', ambientIntensity: 0.75, grassPatches: '#d0dce8',
     fogColor: '#c0d0e0', fogNear: 20, fogFar: 60,
+    hasTrees: false, decorationType: 'snowballs',
   },
   {
     id: 'night', name: 'الليل', icon: '🌙',
@@ -48,6 +53,22 @@ export const GAME_MAPS: MapConfig[] = [
     treeColor1: '#1a3a22', treeColor2: '#122a18', trunkColor: '#3a2a10',
     skyColor: '#0a0a1a', ambientIntensity: 0.3, grassPatches: '#2a3a1a',
     fogColor: '#0a0a1a', fogNear: 12, fogFar: 35,
+    hasTrees: true, decorationType: 'trees',
+  },
+  {
+    id: 'volcano', name: 'البركان', icon: '🌋',
+    groundColor: '#3a2020', arenaColor: '#4a2a1a', arenaBorderColor: '#5a3020',
+    treeColor1: '#2a1a1a', treeColor2: '#1a1010', trunkColor: '#3a2010',
+    skyColor: '#2a1515', ambientIntensity: 0.45, grassPatches: '#4a2a1a',
+    hasTrees: false, decorationType: 'lava',
+  },
+  {
+    id: 'space', name: 'الفضاء', icon: '🚀',
+    groundColor: '#0a0a2a', arenaColor: '#1a1a3a', arenaBorderColor: '#2a2a4a',
+    treeColor1: '#3a2a6a', treeColor2: '#2a1a5a', trunkColor: '#4a3a7a',
+    skyColor: '#050510', ambientIntensity: 0.4, grassPatches: '#1a1a3a',
+    fogColor: '#050510', fogNear: 25, fogFar: 70,
+    hasTrees: false, decorationType: 'crystals',
   },
 ];
 
@@ -93,7 +114,6 @@ export const GAME_MODES: { id: GameMode; name: string; desc: string; icon: strin
 export const PLAYER_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f'];
 export const PLAYER_NAMES_AR = ['أحمر', 'أزرق', 'أخضر', 'ذهبي'];
 
-// Teams mode: only 2 bases (top-left, top-right)
 export const TEAM_BASE_POSITIONS: [number, number, number][] = [
   [-11, 0, -11], [11, 0, -11],
 ];
