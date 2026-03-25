@@ -85,81 +85,204 @@ function getBotBaseIndex(botIndex: number, mode: string): number {
 
 // ─── 3D Sub-components ───
 function Ground({ mapConfig }: { mapConfig: MapConfig }) {
+  // Pre-calculate static decoration positions using deterministic seed
+  const decorations = [];
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + 0.4;
+    const r = 3 + (i * 1.7 % 6);
+    decorations.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, scale: 0.8 + (i % 3) * 0.3 });
+  }
+
+  const outerDecorations = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const r = ARENA_RADIUS + 4 + (i * 1.3 % 3);
+    outerDecorations.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, scale: 0.9 + (i % 2) * 0.4 });
+  }
+
   return (
     <>
+      {/* Ground plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <planeGeometry args={[55, 55]} />
+        <planeGeometry args={[60, 60]} />
         <meshStandardMaterial color={mapConfig.groundColor} />
       </mesh>
+      {/* Arena circle */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <circleGeometry args={[ARENA_RADIUS + 2, 32]} />
+        <circleGeometry args={[ARENA_RADIUS + 2, 48]} />
         <meshStandardMaterial color={mapConfig.arenaColor} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-        <circleGeometry args={[ARENA_RADIUS, 32]} />
+        <circleGeometry args={[ARENA_RADIUS, 48]} />
         <meshStandardMaterial color={mapConfig.arenaBorderColor} />
       </mesh>
-      {[...Array(8)].map((_, i) => {
-        const a = (i / 8) * Math.PI * 2 + 0.3;
-        const r = 3 + Math.random() * 5;
-        return (
-          <mesh key={i} position={[Math.cos(a) * r, 0.01, Math.sin(a) * r]} rotation={[-Math.PI / 2, a, 0]}>
-            <circleGeometry args={[0.5, 6]} />
-            <meshStandardMaterial color={mapConfig.grassPatches} transparent opacity={0.4} />
-          </mesh>
-        );
-      })}
+      {/* Arena border ring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <ringGeometry args={[ARENA_RADIUS - 0.15, ARENA_RADIUS + 0.15, 48]} />
+        <meshStandardMaterial color={mapConfig.arenaBorderColor} transparent opacity={0.6} />
+      </mesh>
+
+      {/* Static grass/ground patches */}
       {[...Array(12)].map((_, i) => {
-        const a = (i / 12) * Math.PI * 2;
-        const r = ARENA_RADIUS + 5 + Math.random() * 2;
+        const a = (i / 12) * Math.PI * 2 + 0.3;
+        const r = 2 + (i * 2.1 % 7);
         return (
-          <group key={`tree-${i}`} position={[Math.cos(a) * r, 0, Math.sin(a) * r]}>
-            <mesh position={[0, 0.7, 0]}>
-              <sphereGeometry args={[1 + Math.random() * 0.5, 8, 8]} />
-              <meshStandardMaterial color={i % 2 === 0 ? mapConfig.treeColor1 : mapConfig.treeColor2} />
-            </mesh>
-            <mesh position={[0, 0.15, 0]}>
-              <cylinderGeometry args={[0.12, 0.14, 0.3, 6]} />
-              <meshStandardMaterial color={mapConfig.trunkColor} />
-            </mesh>
-          </group>
-        );
-      })}
-      {/* Desert cacti or snow mounds */}
-      {mapConfig.id === 'desert' && [...Array(6)].map((_, i) => {
-        const a = (i / 6) * Math.PI * 2 + 0.5;
-        const r = 4 + Math.random() * 6;
-        return (
-          <group key={`cactus-${i}`} position={[Math.cos(a) * r, 0, Math.sin(a) * r]}>
-            <mesh position={[0, 0.5, 0]}>
-              <cylinderGeometry args={[0.12, 0.15, 1.0, 8]} />
-              <meshStandardMaterial color="#3a6b23" />
-            </mesh>
-            <mesh position={[0.2, 0.6, 0]} rotation={[0, 0, -0.5]}>
-              <cylinderGeometry args={[0.06, 0.08, 0.4, 6]} />
-              <meshStandardMaterial color="#3a6b23" />
-            </mesh>
-          </group>
-        );
-      })}
-      {mapConfig.id === 'snow' && [...Array(8)].map((_, i) => {
-        const a = (i / 8) * Math.PI * 2 + 0.2;
-        const r = 2 + Math.random() * 8;
-        return (
-          <mesh key={`snow-${i}`} position={[Math.cos(a) * r, 0.1, Math.sin(a) * r]}>
-            <sphereGeometry args={[0.4 + Math.random() * 0.3, 8, 6]} />
-            <meshStandardMaterial color="#f0f5ff" />
+          <mesh key={`gp-${i}`} position={[Math.cos(a) * r, 0.01, Math.sin(a) * r]} rotation={[-Math.PI / 2, a, 0]}>
+            <circleGeometry args={[0.4 + (i % 3) * 0.2, 6]} />
+            <meshStandardMaterial color={mapConfig.grassPatches} transparent opacity={0.35} />
           </mesh>
         );
       })}
-      {mapConfig.id === 'night' && [...Array(5)].map((_, i) => {
-        const a = (i / 5) * Math.PI * 2;
-        const r = 3 + Math.random() * 6;
-        return (
-          <pointLight key={`light-${i}`} position={[Math.cos(a) * r, 1.5, Math.sin(a) * r]}
-            color="#ffe0a0" intensity={0.6} distance={5} />
-        );
-      })}
+
+      {/* Trees - only for maps with hasTrees */}
+      {mapConfig.hasTrees && outerDecorations.map((d, i) => (
+        <group key={`tree-${i}`} position={[d.x, 0, d.z]}>
+          {/* Trunk */}
+          <mesh position={[0, 0.4, 0]}>
+            <cylinderGeometry args={[0.15, 0.2, 0.8, 8]} />
+            <meshStandardMaterial color={mapConfig.trunkColor} />
+          </mesh>
+          {/* Foliage layers */}
+          <mesh position={[0, 1.0, 0]}>
+            <sphereGeometry args={[0.9 * d.scale, 10, 10]} />
+            <meshStandardMaterial color={i % 2 === 0 ? mapConfig.treeColor1 : mapConfig.treeColor2} />
+          </mesh>
+          <mesh position={[0, 1.5, 0]}>
+            <sphereGeometry args={[0.6 * d.scale, 8, 8]} />
+            <meshStandardMaterial color={mapConfig.treeColor1} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Desert: static cacti and rocks */}
+      {mapConfig.decorationType === 'cacti' && decorations.map((d, i) => (
+        <group key={`cactus-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.6 * d.scale, 0]}>
+            <cylinderGeometry args={[0.12, 0.16, 1.2 * d.scale, 8]} />
+            <meshStandardMaterial color="#3a7a23" />
+          </mesh>
+          <mesh position={[0.25, 0.7 * d.scale, 0]} rotation={[0, 0, -0.6]}>
+            <cylinderGeometry args={[0.06, 0.08, 0.5 * d.scale, 6]} />
+            <meshStandardMaterial color="#3a7a23" />
+          </mesh>
+          {i % 3 === 0 && (
+            <mesh position={[-0.2, 0.5 * d.scale, 0]} rotation={[0, 0, 0.5]}>
+              <cylinderGeometry args={[0.05, 0.07, 0.35 * d.scale, 6]} />
+              <meshStandardMaterial color="#3a7a23" />
+            </mesh>
+          )}
+        </group>
+      ))}
+      {/* Desert rocks outside arena */}
+      {mapConfig.decorationType === 'cacti' && outerDecorations.map((d, i) => (
+        <group key={`drock-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.2 * d.scale, 0]}>
+            <dodecahedronGeometry args={[0.4 * d.scale, 0]} />
+            <meshStandardMaterial color="#b8952a" roughness={0.9} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Snow: static snowballs and ice */}
+      {mapConfig.decorationType === 'snowballs' && decorations.map((d, i) => (
+        <group key={`snow-${i}`} position={[d.x, 0, d.z]}>
+          {/* Snowman or snow mound */}
+          {i % 3 === 0 ? (
+            <>
+              <mesh position={[0, 0.3, 0]}>
+                <sphereGeometry args={[0.4 * d.scale, 10, 8]} />
+                <meshStandardMaterial color="#f0f5ff" />
+              </mesh>
+              <mesh position={[0, 0.65, 0]}>
+                <sphereGeometry args={[0.25 * d.scale, 8, 8]} />
+                <meshStandardMaterial color="#f0f5ff" />
+              </mesh>
+            </>
+          ) : (
+            <mesh position={[0, 0.15, 0]}>
+              <sphereGeometry args={[0.35 * d.scale, 8, 6]} />
+              <meshStandardMaterial color="#e8f0ff" />
+            </mesh>
+          )}
+        </group>
+      ))}
+      {/* Snow: ice crystals outside */}
+      {mapConfig.decorationType === 'snowballs' && outerDecorations.map((d, i) => (
+        <group key={`ice-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.5 * d.scale, 0]} rotation={[0, i * 0.5, 0]}>
+            <octahedronGeometry args={[0.4 * d.scale, 0]} />
+            <meshStandardMaterial color="#c0e0f8" transparent opacity={0.7} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Night: lanterns */}
+      {mapConfig.id === 'night' && decorations.map((d, i) => (
+        <group key={`lantern-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.7, 0]}>
+            <cylinderGeometry args={[0.04, 0.04, 1.0, 6]} />
+            <meshStandardMaterial color="#5a4020" />
+          </mesh>
+          <mesh position={[0, 1.3, 0]}>
+            <sphereGeometry args={[0.15, 8, 8]} />
+            <meshStandardMaterial color="#ffe0a0" emissive="#ffe0a0" emissiveIntensity={0.8} />
+          </mesh>
+          <pointLight position={[d.x, 1.5, d.z]} color="#ffe0a0" intensity={0.8} distance={6} />
+        </group>
+      ))}
+
+      {/* Volcano: lava rocks and glow */}
+      {mapConfig.decorationType === 'lava' && decorations.map((d, i) => (
+        <group key={`lava-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.25 * d.scale, 0]}>
+            <dodecahedronGeometry args={[0.35 * d.scale, 0]} />
+            <meshStandardMaterial color="#2a1a0a" roughness={1} />
+          </mesh>
+          {i % 2 === 0 && (
+            <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <circleGeometry args={[0.3 * d.scale, 8]} />
+              <meshStandardMaterial color="#ff4400" emissive="#ff2200" emissiveIntensity={0.6} transparent opacity={0.5} />
+            </mesh>
+          )}
+        </group>
+      ))}
+      {mapConfig.decorationType === 'lava' && outerDecorations.map((d, i) => (
+        <group key={`vrock-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.3 * d.scale, 0]}>
+            <dodecahedronGeometry args={[0.5 * d.scale, 1]} />
+            <meshStandardMaterial color="#1a0a0a" roughness={0.95} />
+          </mesh>
+          {i % 3 === 0 && (
+            <pointLight position={[d.x, 0.5, d.z]} color="#ff4400" intensity={0.5} distance={4} />
+          )}
+        </group>
+      ))}
+
+      {/* Space: glowing crystals */}
+      {mapConfig.decorationType === 'crystals' && decorations.map((d, i) => (
+        <group key={`crystal-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.5 * d.scale, 0]} rotation={[0.2, i * 1.1, 0.1]}>
+            <octahedronGeometry args={[0.3 * d.scale, 0]} />
+            <meshStandardMaterial
+              color={i % 3 === 0 ? '#8a4af0' : i % 3 === 1 ? '#4a8af0' : '#f04aaa'}
+              emissive={i % 3 === 0 ? '#8a4af0' : i % 3 === 1 ? '#4a8af0' : '#f04aaa'}
+              emissiveIntensity={0.6}
+              transparent opacity={0.85}
+            />
+          </mesh>
+        </group>
+      ))}
+      {mapConfig.decorationType === 'crystals' && outerDecorations.map((d, i) => (
+        <group key={`srock-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.2, 0]}>
+            <dodecahedronGeometry args={[0.3 * d.scale, 0]} />
+            <meshStandardMaterial color="#1a1a3a" />
+          </mesh>
+          {i % 2 === 0 && (
+            <pointLight position={[d.x, 0.8, d.z]} color="#8a4af0" intensity={0.4} distance={5} />
+          )}
+        </group>
+      ))}
     </>
   );
 }
