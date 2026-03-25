@@ -413,6 +413,13 @@ function SceneContent({
   const notificationRef = useRef('');
   const notificationTimer = useRef(0);
   const depositedCounts = useRef<number[]>(bases.map(() => 0));
+  // Map-specific state
+  const mapTimer = useRef(0);
+  const playerFrozen = useRef(false);
+  const playerFrozenTimer = useRef(0);
+  const nightDarkness = useRef(false);
+  const nightDarknessTimer = useRef(0);
+  const playerFloatY = useRef(0); // space floating
 
   // Assign random ability
   useEffect(() => {
