@@ -1011,47 +1011,94 @@ function SceneContent({
         <BaseZone key={i} position={p} color={PLAYER_COLORS[i]} depositedCount={depositedCounts.current[i]} />
       ))}
 
-      {/* Local Player */}
+      {/* Local Player - improved character */}
       <group ref={playerGroupRef}>
+        {/* Shadow */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-          <circleGeometry args={[0.4, 12]} />
-          <meshStandardMaterial color="#000" transparent opacity={0.15} />
+          <circleGeometry args={[0.45, 16]} />
+          <meshStandardMaterial color="#000" transparent opacity={0.2} />
         </mesh>
-        <mesh position={[0, 0.45, 0]}>
-          <capsuleGeometry args={[0.25, 0.35, 8, 12]} />
+        {/* Body - rounded torso */}
+        <mesh position={[0, 0.5, 0]}>
+          <capsuleGeometry args={[0.28, 0.4, 12, 16]} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
+        </mesh>
+        {/* Belt */}
+        <mesh position={[0, 0.32, 0]}>
+          <cylinderGeometry args={[0.29, 0.29, 0.06, 16]} />
+          <meshStandardMaterial color="#2a1a00" />
+        </mesh>
+        {/* Head */}
+        <mesh position={[0, 1.0, 0]}>
+          <sphereGeometry args={[0.24, 16, 16]} />
+          <meshStandardMaterial color="#f5d5a8" roughness={0.5} />
+        </mesh>
+        {/* Hair/hat */}
+        <mesh position={[0, 1.18, 0]}>
+          <sphereGeometry args={[0.26, 12, 8]} />
           <meshStandardMaterial color={PLAYER_COLORS[0]} />
         </mesh>
-        <mesh position={[0, 0.95, 0]}>
-          <sphereGeometry args={[0.22, 12, 12]} />
+        <mesh position={[0, 1.12, 0.12]} rotation={[0.3, 0, 0]}>
+          <cylinderGeometry args={[0.3, 0.28, 0.06, 12]} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} />
+        </mesh>
+        {/* Eyes */}
+        <mesh position={[-0.08, 1.02, 0.2]}>
+          <sphereGeometry args={[0.05, 8, 8]} />
+          <meshStandardMaterial color="#fff" />
+        </mesh>
+        <mesh position={[0.08, 1.02, 0.2]}>
+          <sphereGeometry args={[0.05, 8, 8]} />
+          <meshStandardMaterial color="#fff" />
+        </mesh>
+        <mesh position={[-0.08, 1.02, 0.24]}>
+          <sphereGeometry args={[0.025, 6, 6]} />
+          <meshStandardMaterial color="#222" />
+        </mesh>
+        <mesh position={[0.08, 1.02, 0.24]}>
+          <sphereGeometry args={[0.025, 6, 6]} />
+          <meshStandardMaterial color="#222" />
+        </mesh>
+        {/* Smile */}
+        <mesh position={[0, 0.94, 0.22]} rotation={[0.2, 0, 0]}>
+          <torusGeometry args={[0.04, 0.012, 8, 8, Math.PI]} />
+          <meshStandardMaterial color="#c0785a" />
+        </mesh>
+        {/* Arms */}
+        <mesh position={[-0.38, 0.55, 0]} rotation={[0, 0, 0.4]}>
+          <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
+        </mesh>
+        <mesh position={[0.38, 0.55, 0]} rotation={[0, 0, -0.4]}>
+          <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
+        </mesh>
+        {/* Hands */}
+        <mesh position={[-0.48, 0.38, 0]}>
+          <sphereGeometry args={[0.07, 8, 8]} />
           <meshStandardMaterial color="#f5d5a8" />
         </mesh>
-        <mesh position={[0, 1.12, 0]}>
-          <coneGeometry args={[0.2, 0.22, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} />
+        <mesh position={[0.48, 0.38, 0]}>
+          <sphereGeometry args={[0.07, 8, 8]} />
+          <meshStandardMaterial color="#f5d5a8" />
         </mesh>
-        <mesh position={[-0.08, 0.98, 0.19]}>
-          <sphereGeometry args={[0.04, 6, 6]} />
-          <meshStandardMaterial color="#222" />
-        </mesh>
-        <mesh position={[0.08, 0.98, 0.19]}>
-          <sphereGeometry args={[0.04, 6, 6]} />
-          <meshStandardMaterial color="#222" />
-        </mesh>
-        <mesh position={[-0.35, 0.48, 0]} rotation={[0, 0, 0.3]}>
-          <capsuleGeometry args={[0.07, 0.28, 4, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} />
-        </mesh>
-        <mesh position={[0.35, 0.48, 0]} rotation={[0, 0, -0.3]}>
-          <capsuleGeometry args={[0.07, 0.28, 4, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} />
-        </mesh>
+        {/* Legs */}
         <mesh position={[-0.12, 0.12, 0]}>
-          <capsuleGeometry args={[0.08, 0.16, 4, 8]} />
-          <meshStandardMaterial color="#5a4020" />
+          <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
+          <meshStandardMaterial color="#3a2a10" />
         </mesh>
         <mesh position={[0.12, 0.12, 0]}>
-          <capsuleGeometry args={[0.08, 0.16, 4, 8]} />
-          <meshStandardMaterial color="#5a4020" />
+          <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
+          <meshStandardMaterial color="#3a2a10" />
+        </mesh>
+        {/* Shoes */}
+        <mesh position={[-0.12, 0.02, 0.04]}>
+          <boxGeometry args={[0.12, 0.06, 0.18]} />
+          <meshStandardMaterial color="#2a1a0a" />
+        </mesh>
+        <mesh position={[0.12, 0.02, 0.04]}>
+          <boxGeometry args={[0.12, 0.06, 0.18]} />
+          <meshStandardMaterial color="#2a1a0a" />
         </mesh>
       </group>
 
