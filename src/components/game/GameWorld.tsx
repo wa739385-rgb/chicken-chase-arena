@@ -817,7 +817,7 @@ function SceneContent({
         bot.frozenTimer -= delta;
         if (bot.frozenTimer <= 0) bot.frozen = false;
         const grp = botGroupRefs.current[bi];
-        if (grp) grp.position.set(bot.x, 0, bot.z);
+        if (grp) grp.position.set(bot.x, config.mapId === 'space' ? Math.sin(Date.now() * 0.002 + bi) * 0.3 + 0.3 : 0, bot.z);
         return;
       }
 
@@ -931,7 +931,7 @@ function SceneContent({
 
       const grp = botGroupRefs.current[bi];
       if (grp) {
-        grp.position.set(bot.x, 0, bot.z);
+        grp.position.set(bot.x, config.mapId === 'space' ? Math.sin(Date.now() * 0.002 + bi + 2) * 0.3 + 0.3 : 0, bot.z);
         grp.rotation.y = bot.facingAngle;
         if (config.mode === 'invisible') {
           grp.traverse((child) => {
