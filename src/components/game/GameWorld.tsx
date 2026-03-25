@@ -413,6 +413,13 @@ function SceneContent({
   const notificationRef = useRef('');
   const notificationTimer = useRef(0);
   const depositedCounts = useRef<number[]>(bases.map(() => 0));
+  // Map-specific state
+  const mapTimer = useRef(0);
+  const playerFrozen = useRef(false);
+  const playerFrozenTimer = useRef(0);
+  const nightDarkness = useRef(false);
+  const nightDarknessTimer = useRef(0);
+  const playerFloatY = useRef(0); // space floating
 
   // Assign random ability
   useEffect(() => {
@@ -472,13 +479,57 @@ function SceneContent({
     const chickens = chickensRef.current;
     const bots = botsRef.current;
 
+    // ── Map-specific mechanics ──
+    mapTimer.current += delta;
+
+    // Desert: slower movement
+    const mapSpeedMult = config.mapId === 'desert' ? 0.7 : config.mapId === 'space' ? 1.15 : 1;
+
+    // Snow: freeze every 10 seconds for 2 seconds
+    if (config.mapId === 'snow') {
+      if (!playerFrozen.current && mapTimer.current > 10) {
+        playerFrozen.current = true;
+        playerFrozenTimer.current = 2;
+        mapTimer.current = 0;
+        showNotification('❄️ تجمّدت! انتظر...');
+        // Freeze bots too
+        bots.forEach(b => { b.frozen = true; b.frozenTimer = 2; });
+      }
+      if (playerFrozen.current) {
+        playerFrozenTimer.current -= delta;
+        if (playerFrozenTimer.current <= 0) playerFrozen.current = false;
+      }
+    }
+
+    // Night: darkness every 8 seconds for 3 seconds
+    if (config.mapId === 'night') {
+      nightDarknessTimer.current += delta;
+      if (!nightDarkness.current && nightDarknessTimer.current > 8) {
+        nightDarkness.current = true;
+        nightDarknessTimer.current = 0;
+        showNotification('🌑 ظلام دامس!');
+      }
+      if (nightDarkness.current && nightDarknessTimer.current > 3) {
+        nightDarkness.current = false;
+        nightDarknessTimer.current = 0;
+      }
+    }
+
+    // Space: floating effect
+    if (config.mapId === 'space') {
+      playerFloatY.current = Math.sin(Date.now() * 0.002) * 0.3 + 0.3;
+    }
+
     // ── Player Movement ──
-    const speed = PLAYER_SPEED * speedMult.current * delta;
+    const isFrozenByMap = playerFrozen.current;
+    const speed = PLAYER_SPEED * speedMult.current * mapSpeedMult * delta;
     let dx = 0, dz = 0;
-    if (keys.has('w') || keys.has('arrowup')) dz -= 1;
-    if (keys.has('s') || keys.has('arrowdown')) dz += 1;
-    if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
-    if (keys.has('d') || keys.has('arrowright')) dx += 1;
+    if (!isFrozenByMap) {
+      if (keys.has('w') || keys.has('arrowup')) dz -= 1;
+      if (keys.has('s') || keys.has('arrowdown')) dz += 1;
+      if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
+      if (keys.has('d') || keys.has('arrowright')) dx += 1;
+    }
     const moved = dx !== 0 || dz !== 0;
     if (moved) {
       const len = Math.sqrt(dx * dx + dz * dz);
@@ -490,22 +541,70 @@ function SceneContent({
     pos.x = Math.max(-MAP_EXTENT, Math.min(MAP_EXTENT, pos.x));
     pos.z = Math.max(-MAP_EXTENT, Math.min(MAP_EXTENT, pos.z));
 
-    if (playerGroupRef.current) {
-      playerGroupRef.current.position.set(pos.x, 0, pos.z);
-      playerGroupRef.current.rotation.y = playerAngle.current;
-      if (moved) {
-        playerGroupRef.current.position.y = Math.sin(walkCycle.current) * 0.04;
+    // Volcano: center lava zone (radius 2.5) - touching resets player to base
+    if (config.mapId === 'volcano') {
+      const centerDist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+      if (centerDist < 2.5) {
+        const myBase = bases[playerBaseIdx];
+        pos.x = myBase[0];
+        pos.z = myBase[2];
+        if (localCarriedIdx.current >= 0) {
+          const c = chickens[localCarriedIdx.current];
+          c.carriedBy = -1;
+          const [nx, nz] = randomInArena();
+          c.x = nx; c.z = nz; c.targetX = nx; c.targetZ = nz;
+          localCarriedIdx.current = -1;
+        }
+        showNotification('🌋 لمست البركان! رجعت للقاعدة!');
       }
-      // Invisible mode - players semi-visible
-      playerGroupRef.current.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
-          if (config.mode === 'invisible' && mat) {
-            mat.transparent = true;
-            mat.opacity = moved ? 0.35 : 0.08;
+      // Same for bots
+      bots.forEach((bot, bi) => {
+        const bd = Math.sqrt(bot.x * bot.x + bot.z * bot.z);
+        if (bd < 2.5) {
+          const botBase = getBotBaseIndex(bi, config.mode);
+          const base = bases[botBase];
+          if (base) {
+            bot.x = base[0]; bot.z = base[2];
+            if (bot.carryingChickenIdx >= 0) {
+              const c = chickens[bot.carryingChickenIdx];
+              c.carriedBy = -1;
+              const [nx, nz] = randomInArena();
+              c.x = nx; c.z = nz;
+              bot.carryingChickenIdx = -1;
+            }
           }
         }
       });
+    }
+
+    const baseY = config.mapId === 'space' ? playerFloatY.current : 0;
+    if (playerGroupRef.current) {
+      playerGroupRef.current.position.set(pos.x, baseY, pos.z);
+      playerGroupRef.current.rotation.y = playerAngle.current;
+      if (moved && config.mapId !== 'space') {
+        playerGroupRef.current.position.y = baseY + Math.sin(walkCycle.current) * 0.04;
+      }
+      // Frozen visual
+      if (isFrozenByMap) {
+        playerGroupRef.current.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+            if (mat) { mat.transparent = true; mat.opacity = 0.5; }
+          }
+        });
+      }
+      // Invisible mode - players semi-visible
+      if (config.mode === 'invisible') {
+        playerGroupRef.current.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+            if (mat) {
+              mat.transparent = true;
+              mat.opacity = moved ? 0.35 : 0.08;
+            }
+          }
+        });
+      }
     }
 
     // ── Ability ──
@@ -718,7 +817,7 @@ function SceneContent({
         bot.frozenTimer -= delta;
         if (bot.frozenTimer <= 0) bot.frozen = false;
         const grp = botGroupRefs.current[bi];
-        if (grp) grp.position.set(bot.x, 0, bot.z);
+        if (grp) grp.position.set(bot.x, config.mapId === 'space' ? Math.sin(Date.now() * 0.002 + bi) * 0.3 + 0.3 : 0, bot.z);
         return;
       }
 
@@ -832,7 +931,7 @@ function SceneContent({
 
       const grp = botGroupRefs.current[bi];
       if (grp) {
-        grp.position.set(bot.x, 0, bot.z);
+        grp.position.set(bot.x, config.mapId === 'space' ? Math.sin(Date.now() * 0.002 + bi + 2) * 0.3 + 0.3 : 0, bot.z);
         grp.rotation.y = bot.facingAngle;
         if (config.mode === 'invisible') {
           grp.traverse((child) => {
@@ -992,12 +1091,15 @@ function SceneContent({
 
   return (
     <>
-      <ambientLight intensity={mapConfig.ambientIntensity} />
-      <directionalLight position={[10, 25, 10]} intensity={mapConfig.id === 'night' ? 0.3 : 1} castShadow />
-      <directionalLight position={[-8, 18, -8]} intensity={mapConfig.id === 'night' ? 0.1 : 0.25} />
-      <hemisphereLight args={[mapConfig.skyColor, mapConfig.groundColor, 0.3]} />
+      <ambientLight intensity={nightDarkness.current ? 0.05 : mapConfig.ambientIntensity} />
+      <directionalLight position={[10, 25, 10]} intensity={nightDarkness.current ? 0.02 : (mapConfig.id === 'night' ? 0.3 : 1)} castShadow />
+      <directionalLight position={[-8, 18, -8]} intensity={nightDarkness.current ? 0.01 : (mapConfig.id === 'night' ? 0.1 : 0.25)} />
+      <hemisphereLight args={[mapConfig.skyColor, mapConfig.groundColor, nightDarkness.current ? 0.02 : 0.3]} />
 
-      {mapConfig.fogColor && (
+      {nightDarkness.current && (
+        <fog attach="fog" args={['#000000', 2, 8]} />
+      )}
+      {!nightDarkness.current && mapConfig.fogColor && (
         <fog attach="fog" args={[mapConfig.fogColor, mapConfig.fogNear || 20, mapConfig.fogFar || 60]} />
       )}
       {config.mode === 'challenges' && currentChallenge.current === 2 && (
@@ -1005,6 +1107,29 @@ function SceneContent({
       )}
 
       <Ground mapConfig={mapConfig} />
+
+      {/* Volcano center lava pool */}
+      {config.mapId === 'volcano' && (
+        <group position={[0, 0, 0]}>
+          {/* Volcano cone */}
+          <mesh position={[0, 0.8, 0]}>
+            <coneGeometry args={[2.5, 1.8, 16]} />
+            <meshStandardMaterial color="#2a1510" roughness={0.95} />
+          </mesh>
+          {/* Lava pool on top */}
+          <mesh position={[0, 1.72, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[1.2, 16]} />
+            <meshStandardMaterial color="#ff4400" emissive="#ff2200" emissiveIntensity={1.2} />
+          </mesh>
+          {/* Glow */}
+          <pointLight position={[0, 2.5, 0]} color="#ff4400" intensity={2} distance={10} />
+          {/* Warning ring */}
+          <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[2.2, 2.8, 24]} />
+            <meshStandardMaterial color="#ff6600" emissive="#ff4400" emissiveIntensity={0.5} transparent opacity={0.4} />
+          </mesh>
+        </group>
+      )}
 
       {/* Bases */}
       {bases.map((p, i) => (
