@@ -489,6 +489,23 @@ function SceneContent({
   const nightDarkness = useRef(false);
   const nightDarknessTimer = useRef(0);
   const playerFloatY = useRef(0); // space floating
+  // Moving obstacles
+  const obstacles = useRef<Obstacle[]>(
+    Array.from({ length: 4 }, (_, i) => ({
+      x: 0, z: 0, angle: (i / 4) * Math.PI * 2,
+      speed: 0.8 + Math.random() * 0.6,
+      radius: 0.5, orbitRadius: 4 + i * 2,
+      type: (['log', 'boulder', 'spinner'] as const)[i % 3],
+    }))
+  );
+  const obstacleRefs = useRef<(THREE.Group | null)[]>([]);
+  const playerColorRef = useRef(config.playerColor);
+
+  // Get bot colors (exclude player color)
+  const getBotColors = useCallback(() => {
+    const available = PLAYER_COLORS.filter(c => c !== config.playerColor);
+    return available;
+  }, [config.playerColor]);
 
   // Assign random ability
   useEffect(() => {
