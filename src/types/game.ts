@@ -101,6 +101,7 @@ export interface GameConfig {
   maxTime: number;
   botCount: number;
   mapId: GameMapId;
+  playerColor: string;
 }
 
 export interface PlayerScore {
