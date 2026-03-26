@@ -48,6 +48,15 @@ interface LuckBox {
   timer: number;
 }
 
+interface Obstacle {
+  x: number; z: number;
+  angle: number;
+  speed: number;
+  radius: number;
+  orbitRadius: number;
+  type: 'log' | 'boulder' | 'spinner';
+}
+
 // ─── Helpers ───
 function dist2(ax: number, az: number, bx: number, bz: number) {
   return Math.sqrt((ax - bx) ** 2 + (az - bz) ** 2);
