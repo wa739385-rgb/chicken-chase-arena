@@ -1143,18 +1143,53 @@ function SceneContent({
       }
     }
 
+    // ── Moving Obstacles ──
+    obstacles.current.forEach((obs, i) => {
+      obs.angle += obs.speed * delta;
+      obs.x = Math.cos(obs.angle) * obs.orbitRadius;
+      obs.z = Math.sin(obs.angle) * obs.orbitRadius;
+      const grp = obstacleRefs.current[i];
+      if (grp) {
+        grp.position.set(obs.x, 0.3, obs.z);
+        grp.rotation.y += delta * 3;
+      }
+      // Player collision
+      if (dist2(pos.x, pos.z, obs.x, obs.z) < obs.radius + 0.4) {
+        const pushAngle = Math.atan2(pos.z - obs.z, pos.x - obs.x);
+        pos.x += Math.cos(pushAngle) * 0.3;
+        pos.z += Math.sin(pushAngle) * 0.3;
+        if (localCarriedIdx.current >= 0 && Math.random() < 0.15) {
+          const c = chickens[localCarriedIdx.current];
+          c.carriedBy = -1;
+          const [nx, nz] = randomInArena();
+          c.x = nx; c.z = nz; c.targetX = nx; c.targetZ = nz;
+          localCarriedIdx.current = -1;
+          showNotification('💥 اصطدمت بعقبة!'); soundObstacleHit();
+        }
+      }
+      // Bot collision
+      bots.forEach(bot => {
+        if (dist2(bot.x, bot.z, obs.x, obs.z) < obs.radius + 0.3) {
+          const pushAngle = Math.atan2(bot.z - obs.z, bot.x - obs.x);
+          bot.x += Math.cos(pushAngle) * 0.2;
+          bot.z += Math.sin(pushAngle) * 0.2;
+        }
+      });
+    });
+
     // ── Notification timer ──
     if (notificationTimer.current > 0) notificationTimer.current -= delta;
 
     // ── HUD Update ──
+    const botColors = getBotColors();
     hudTimer.current += delta;
     if (hudTimer.current > 0.15) {
       hudTimer.current = 0;
       const scores: PlayerScore[] = [
-        { id: 'local', name: config.playerName || PLAYER_NAMES_AR[0], color: PLAYER_COLORS[0], score: localScore.current },
+        { id: 'local', name: config.playerName || PLAYER_NAMES_AR[0], color: config.playerColor, score: localScore.current },
         ...bots.map((b, i) => ({
           id: `bot-${i}`, name: PLAYER_NAMES_AR[i + 1] || `بوت ${i + 1}`,
-          color: PLAYER_COLORS[i + 1] || '#888', score: b.score,
+          color: botColors[i] || '#888', score: b.score,
         })),
       ];
       if (config.mode === 'teams') {
