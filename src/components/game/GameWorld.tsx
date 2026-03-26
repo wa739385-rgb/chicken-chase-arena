@@ -577,7 +577,7 @@ function SceneContent({
         playerFrozen.current = true;
         playerFrozenTimer.current = 2;
         mapTimer.current = 0;
-        showNotification('❄️ تجمّدت! انتظر...');
+        showNotification('❄️ تجمّدت! انتظر...'); soundFreeze();
         // Freeze bots too
         bots.forEach(b => { b.frozen = true; b.frozenTimer = 2; });
       }
@@ -593,7 +593,7 @@ function SceneContent({
       if (!nightDarkness.current && nightDarknessTimer.current > 8) {
         nightDarkness.current = true;
         nightDarknessTimer.current = 0;
-        showNotification('🌑 ظلام دامس!');
+        showNotification('🌑 ظلام دامس!'); soundDarkness();
       }
       if (nightDarkness.current && nightDarknessTimer.current > 3) {
         nightDarkness.current = false;
@@ -641,7 +641,7 @@ function SceneContent({
           c.x = nx; c.z = nz; c.targetX = nx; c.targetZ = nz;
           localCarriedIdx.current = -1;
         }
-        showNotification('🌋 لمست البركان! رجعت للقاعدة!');
+        showNotification('🌋 لمست البركان! رجعت للقاعدة!'); soundVolcano();
       }
       // Same for bots
       bots.forEach((bot, bi) => {
@@ -702,7 +702,7 @@ function SceneContent({
         case 'speed':
           abilityCooldown.current = 15;
           speedMult.current = 2.5;
-          showNotification('⚡ سرعة خارقة!');
+          showNotification('⚡ سرعة خارقة!'); soundAbility();
           setTimeout(() => { speedMult.current = 1; abilityActive.current = false; }, 3000);
           break;
         case 'magnet': {
@@ -720,7 +720,7 @@ function SceneContent({
             c.x = pos.x; c.z = pos.z;
             c.carriedBy = 0;
             localCarriedIdx.current = nearestIdx;
-            showNotification('🧲 مغناطيس! جذبت فرخة!');
+            showNotification('🧲 مغناطيس! جذبت فرخة!'); soundAbility();
           } else {
             showNotification('🧲 مافي فراخ قريبة!');
           }
@@ -730,13 +730,13 @@ function SceneContent({
         case 'invisible':
           abilityCooldown.current = 18;
           playerInvisible.current = true;
-          showNotification('👻 اختفيت عن البوتات!');
+          showNotification('👻 اختفيت عن البوتات!'); soundAbility();
           setTimeout(() => { playerInvisible.current = false; abilityActive.current = false; }, 4000);
           break;
         case 'freeze':
           abilityCooldown.current = 20;
           bots.forEach(b => { b.frozen = true; b.frozenTimer = 3; });
-          showNotification('❄️ جمّدت كل الخصوم!');
+          showNotification('❄️ جمّدت كل الخصوم!'); soundFreeze();
           setTimeout(() => { abilityActive.current = false; }, 1000);
           break;
       }
