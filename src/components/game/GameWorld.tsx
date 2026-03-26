@@ -1268,7 +1268,7 @@ function SceneContent({
         {/* Body - rounded torso */}
         <mesh position={[0, 0.5, 0]}>
           <capsuleGeometry args={[0.28, 0.4, 12, 16]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
+          <meshStandardMaterial color={config.playerColor} roughness={0.6} />
         </mesh>
         {/* Belt */}
         <mesh position={[0, 0.32, 0]}>
@@ -1283,11 +1283,11 @@ function SceneContent({
         {/* Hair/hat */}
         <mesh position={[0, 1.18, 0]}>
           <sphereGeometry args={[0.26, 12, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} />
+          <meshStandardMaterial color={config.playerColor} />
         </mesh>
         <mesh position={[0, 1.12, 0.12]} rotation={[0.3, 0, 0]}>
           <cylinderGeometry args={[0.3, 0.28, 0.06, 12]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} />
+          <meshStandardMaterial color={config.playerColor} />
         </mesh>
         {/* Eyes */}
         <mesh position={[-0.08, 1.02, 0.2]}>
@@ -1314,11 +1314,11 @@ function SceneContent({
         {/* Arms */}
         <mesh position={[-0.38, 0.55, 0]} rotation={[0, 0, 0.4]}>
           <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
+          <meshStandardMaterial color={config.playerColor} roughness={0.6} />
         </mesh>
         <mesh position={[0.38, 0.55, 0]} rotation={[0, 0, -0.4]}>
           <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
+          <meshStandardMaterial color={config.playerColor} roughness={0.6} />
         </mesh>
         {/* Hands */}
         <mesh position={[-0.48, 0.38, 0]}>
