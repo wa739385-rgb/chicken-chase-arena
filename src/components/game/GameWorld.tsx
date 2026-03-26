@@ -12,11 +12,6 @@ import {
 } from '@/types/game';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import GameHUD from './GameHUD';
-import {
-  soundCatch, soundDeposit, soundSteal, soundLoseChicken,
-  soundFreeze, soundVolcano, soundLuckBox, soundGameOver,
-  soundAbility, soundObstacleHit, soundDarkness, resumeAudio,
-} from '@/utils/sounds';
 
 // ─── Internal Types ───
 interface ChickenState {
@@ -46,15 +41,6 @@ interface LuckBox {
   active: boolean;
   type: 'speed' | 'lose' | 'freeze' | 'double';
   timer: number;
-}
-
-interface Obstacle {
-  x: number; z: number;
-  angle: number;
-  speed: number;
-  radius: number;
-  orbitRadius: number;
-  type: 'log' | 'boulder' | 'spinner';
 }
 
 // ─── Helpers ───
@@ -286,70 +272,15 @@ function Ground({ mapConfig }: { mapConfig: MapConfig }) {
           </mesh>
         </group>
       ))}
-      {/* Seaweed (underwater) */}
-      {mapConfig.decorationType === 'seaweed' && decorations.map((d, i) => (
-        <group key={`seaweed-${i}`} position={[d.x, 0, d.z]}>
-          <mesh position={[0, 0.4 * d.scale, 0]}>
-            <cylinderGeometry args={[0.04, 0.08, 0.8 * d.scale, 6]} />
-            <meshStandardMaterial color="#1a8a5a" />
-          </mesh>
-          <mesh position={[0.1, 0.6 * d.scale, 0]}>
-            <cylinderGeometry args={[0.03, 0.06, 0.5 * d.scale, 6]} />
-            <meshStandardMaterial color="#2aaa6a" />
+      {mapConfig.decorationType === 'crystals' && outerDecorations.map((d, i) => (
+        <group key={`srock-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.2, 0]}>
+            <dodecahedronGeometry args={[0.3 * d.scale, 0]} />
+            <meshStandardMaterial color="#1a1a3a" />
           </mesh>
           {i % 2 === 0 && (
-            <mesh position={[-0.1, 0.3 * d.scale, 0]}>
-              <sphereGeometry args={[0.12 * d.scale, 8, 8]} />
-              <meshStandardMaterial color="#2a6a9a" transparent opacity={0.5} />
-            </mesh>
+            <pointLight position={[d.x, 0.8, d.z]} color="#8a4af0" intensity={0.4} distance={5} />
           )}
-        </group>
-      ))}
-      {mapConfig.decorationType === 'seaweed' && outerDecorations.map((d, i) => (
-        <group key={`coral-${i}`} position={[d.x, 0, d.z]}>
-          <mesh position={[0, 0.2 * d.scale, 0]}>
-            <dodecahedronGeometry args={[0.3 * d.scale, 0]} />
-            <meshStandardMaterial color={i % 2 === 0 ? '#e05050' : '#e0a030'} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Candy decorations */}
-      {mapConfig.decorationType === 'candy' && decorations.map((d, i) => (
-        <group key={`candy-${i}`} position={[d.x, 0, d.z]}>
-          {i % 3 === 0 ? (
-            // Lollipop
-            <>
-              <mesh position={[0, 0.5 * d.scale, 0]}>
-                <cylinderGeometry args={[0.04, 0.04, 1.0 * d.scale, 6]} />
-                <meshStandardMaterial color="#f0c080" />
-              </mesh>
-              <mesh position={[0, 1.1 * d.scale, 0]}>
-                <sphereGeometry args={[0.3 * d.scale, 10, 10]} />
-                <meshStandardMaterial color={i % 2 === 0 ? '#e060a0' : '#60a0e0'} />
-              </mesh>
-            </>
-          ) : i % 3 === 1 ? (
-            // Gummy bear shape
-            <mesh position={[0, 0.25 * d.scale, 0]}>
-              <capsuleGeometry args={[0.2 * d.scale, 0.2 * d.scale, 8, 8]} />
-              <meshStandardMaterial color={i % 2 === 0 ? '#e0e040' : '#40e060'} transparent opacity={0.8} />
-            </mesh>
-          ) : (
-            // Candy cane
-            <mesh position={[0, 0.4 * d.scale, 0]}>
-              <cylinderGeometry args={[0.06, 0.06, 0.8 * d.scale, 6]} />
-              <meshStandardMaterial color="#e04040" />
-            </mesh>
-          )}
-        </group>
-      ))}
-      {mapConfig.decorationType === 'candy' && outerDecorations.map((d, i) => (
-        <group key={`cdeco-${i}`} position={[d.x, 0, d.z]}>
-          <mesh position={[0, 0.3 * d.scale, 0]}>
-            <coneGeometry args={[0.3 * d.scale, 0.6 * d.scale, 8]} />
-            <meshStandardMaterial color={['#ff80c0', '#80c0ff', '#c0ff80', '#ffc080'][i % 4]} />
-          </mesh>
         </group>
       ))}
     </>
@@ -489,23 +420,6 @@ function SceneContent({
   const nightDarkness = useRef(false);
   const nightDarknessTimer = useRef(0);
   const playerFloatY = useRef(0); // space floating
-  // Moving obstacles
-  const obstacles = useRef<Obstacle[]>(
-    Array.from({ length: 4 }, (_, i) => ({
-      x: 0, z: 0, angle: (i / 4) * Math.PI * 2,
-      speed: 0.8 + Math.random() * 0.6,
-      radius: 0.5, orbitRadius: 4 + i * 2,
-      type: (['log', 'boulder', 'spinner'] as const)[i % 3],
-    }))
-  );
-  const obstacleRefs = useRef<(THREE.Group | null)[]>([]);
-  const playerColorRef = useRef(config.playerColor);
-
-  // Get bot colors (exclude player color)
-  const getBotColors = useCallback(() => {
-    const available = PLAYER_COLORS.filter(c => c !== config.playerColor);
-    return available;
-  }, [config.playerColor]);
 
   // Assign random ability
   useEffect(() => {
@@ -577,7 +491,7 @@ function SceneContent({
         playerFrozen.current = true;
         playerFrozenTimer.current = 2;
         mapTimer.current = 0;
-        showNotification('❄️ تجمّدت! انتظر...'); soundFreeze();
+        showNotification('❄️ تجمّدت! انتظر...');
         // Freeze bots too
         bots.forEach(b => { b.frozen = true; b.frozenTimer = 2; });
       }
@@ -593,7 +507,7 @@ function SceneContent({
       if (!nightDarkness.current && nightDarknessTimer.current > 8) {
         nightDarkness.current = true;
         nightDarknessTimer.current = 0;
-        showNotification('🌑 ظلام دامس!'); soundDarkness();
+        showNotification('🌑 ظلام دامس!');
       }
       if (nightDarkness.current && nightDarknessTimer.current > 3) {
         nightDarkness.current = false;
@@ -641,7 +555,7 @@ function SceneContent({
           c.x = nx; c.z = nz; c.targetX = nx; c.targetZ = nz;
           localCarriedIdx.current = -1;
         }
-        showNotification('🌋 لمست البركان! رجعت للقاعدة!'); soundVolcano();
+        showNotification('🌋 لمست البركان! رجعت للقاعدة!');
       }
       // Same for bots
       bots.forEach((bot, bi) => {
@@ -702,7 +616,7 @@ function SceneContent({
         case 'speed':
           abilityCooldown.current = 15;
           speedMult.current = 2.5;
-          showNotification('⚡ سرعة خارقة!'); soundAbility();
+          showNotification('⚡ سرعة خارقة!');
           setTimeout(() => { speedMult.current = 1; abilityActive.current = false; }, 3000);
           break;
         case 'magnet': {
@@ -720,7 +634,7 @@ function SceneContent({
             c.x = pos.x; c.z = pos.z;
             c.carriedBy = 0;
             localCarriedIdx.current = nearestIdx;
-            showNotification('🧲 مغناطيس! جذبت فرخة!'); soundAbility();
+            showNotification('🧲 مغناطيس! جذبت فرخة!');
           } else {
             showNotification('🧲 مافي فراخ قريبة!');
           }
@@ -730,13 +644,13 @@ function SceneContent({
         case 'invisible':
           abilityCooldown.current = 18;
           playerInvisible.current = true;
-          showNotification('👻 اختفيت عن البوتات!'); soundAbility();
+          showNotification('👻 اختفيت عن البوتات!');
           setTimeout(() => { playerInvisible.current = false; abilityActive.current = false; }, 4000);
           break;
         case 'freeze':
           abilityCooldown.current = 20;
           bots.forEach(b => { b.frozen = true; b.frozenTimer = 3; });
-          showNotification('❄️ جمّدت كل الخصوم!'); soundFreeze();
+          showNotification('❄️ جمّدت كل الخصوم!');
           setTimeout(() => { abilityActive.current = false; }, 1000);
           break;
       }
@@ -848,7 +762,6 @@ function SceneContent({
           if (config.mode === 'invisible') c.visible = true;
           c.carriedBy = 0;
           localCarriedIdx.current = i;
-          soundCatch();
           break;
         }
       }
@@ -868,7 +781,7 @@ function SceneContent({
       c.depositedBase = playerBaseIdx;
       localCarriedIdx.current = -1;
       depositedCounts.current[playerBaseIdx]++;
-      showNotification(`+${points} نقطة!`); soundDeposit();
+      showNotification(`+${points} نقطة!`);
       respawnChickens(chickens);
     }
 
@@ -889,7 +802,7 @@ function SceneContent({
             inactiveC.deposited = false;
             inactiveC.x = pos.x; inactiveC.z = pos.z;
             localCarriedIdx.current = idx;
-            showNotification('🦹 سرقت فرخة!'); soundSteal();
+            showNotification('🦹 سرقت فرخة!');
           }
           stealCooldown.current = 3;
           break;
@@ -943,7 +856,7 @@ function SceneContent({
           const [nx, nz] = randomInArena();
           c.x = nx; c.z = nz; c.targetX = nx; c.targetZ = nz;
           localCarriedIdx.current = -1;
-          showNotification('🏃 أمسك بك الصياد!'); soundLoseChicken();
+          showNotification('🏃 أمسك بك الصياد!');
         }
         // If close to other bots, make them lose chicken too
         bots.forEach((otherBot, oi) => {
@@ -1080,7 +993,7 @@ function SceneContent({
         case 'speed':
           if (isPlayer) {
             speedMult.current = 2;
-            showNotification('💨 سرعة مضاعفة!'); soundLuckBox();
+            showNotification('💨 سرعة مضاعفة!');
             setTimeout(() => { speedMult.current = 1; }, 5000);
           }
           // Bot speed boost is implicit (they already move)
@@ -1092,7 +1005,7 @@ function SceneContent({
             const [nx, nz] = randomInArena();
             c.x = nx; c.z = nz;
             localCarriedIdx.current = -1;
-            showNotification('😱 خسرت الفرخة!'); soundLoseChicken();
+            showNotification('😱 خسرت الفرخة!');
           } else if (!isPlayer && bots[entityIdx].carryingChickenIdx >= 0) {
             const c = chickens[bots[entityIdx].carryingChickenIdx];
             c.carriedBy = -1;
@@ -1104,14 +1017,14 @@ function SceneContent({
         case 'freeze':
           if (isPlayer) {
             bots.forEach(b => { b.frozen = true; b.frozenTimer = 4; });
-            showNotification('❄️ تجميد الخصوم!'); soundFreeze();
+            showNotification('❄️ تجميد الخصوم!');
           }
           // If bot picks it up, freeze player... we skip that for simplicity
           break;
         case 'double':
           if (isPlayer) {
             doublePoints.current = true;
-            showNotification('✨ نقاط مضاعفة!'); soundLuckBox();
+            showNotification('✨ نقاط مضاعفة!');
             setTimeout(() => { doublePoints.current = false; }, 10000);
           }
           break;
@@ -1143,53 +1056,18 @@ function SceneContent({
       }
     }
 
-    // ── Moving Obstacles ──
-    obstacles.current.forEach((obs, i) => {
-      obs.angle += obs.speed * delta;
-      obs.x = Math.cos(obs.angle) * obs.orbitRadius;
-      obs.z = Math.sin(obs.angle) * obs.orbitRadius;
-      const grp = obstacleRefs.current[i];
-      if (grp) {
-        grp.position.set(obs.x, 0.3, obs.z);
-        grp.rotation.y += delta * 3;
-      }
-      // Player collision
-      if (dist2(pos.x, pos.z, obs.x, obs.z) < obs.radius + 0.4) {
-        const pushAngle = Math.atan2(pos.z - obs.z, pos.x - obs.x);
-        pos.x += Math.cos(pushAngle) * 0.3;
-        pos.z += Math.sin(pushAngle) * 0.3;
-        if (localCarriedIdx.current >= 0 && Math.random() < 0.15) {
-          const c = chickens[localCarriedIdx.current];
-          c.carriedBy = -1;
-          const [nx, nz] = randomInArena();
-          c.x = nx; c.z = nz; c.targetX = nx; c.targetZ = nz;
-          localCarriedIdx.current = -1;
-          showNotification('💥 اصطدمت بعقبة!'); soundObstacleHit();
-        }
-      }
-      // Bot collision
-      bots.forEach(bot => {
-        if (dist2(bot.x, bot.z, obs.x, obs.z) < obs.radius + 0.3) {
-          const pushAngle = Math.atan2(bot.z - obs.z, bot.x - obs.x);
-          bot.x += Math.cos(pushAngle) * 0.2;
-          bot.z += Math.sin(pushAngle) * 0.2;
-        }
-      });
-    });
-
     // ── Notification timer ──
     if (notificationTimer.current > 0) notificationTimer.current -= delta;
 
     // ── HUD Update ──
-    const botColors = getBotColors();
     hudTimer.current += delta;
     if (hudTimer.current > 0.15) {
       hudTimer.current = 0;
       const scores: PlayerScore[] = [
-        { id: 'local', name: config.playerName || PLAYER_NAMES_AR[0], color: config.playerColor, score: localScore.current },
+        { id: 'local', name: config.playerName || PLAYER_NAMES_AR[0], color: PLAYER_COLORS[0], score: localScore.current },
         ...bots.map((b, i) => ({
           id: `bot-${i}`, name: PLAYER_NAMES_AR[i + 1] || `بوت ${i + 1}`,
-          color: botColors[i] || '#888', score: b.score,
+          color: PLAYER_COLORS[i + 1] || '#888', score: b.score,
         })),
       ];
       if (config.mode === 'teams') {
@@ -1268,7 +1146,7 @@ function SceneContent({
         {/* Body - rounded torso */}
         <mesh position={[0, 0.5, 0]}>
           <capsuleGeometry args={[0.28, 0.4, 12, 16]} />
-          <meshStandardMaterial color={config.playerColor} roughness={0.6} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
         </mesh>
         {/* Belt */}
         <mesh position={[0, 0.32, 0]}>
@@ -1283,11 +1161,11 @@ function SceneContent({
         {/* Hair/hat */}
         <mesh position={[0, 1.18, 0]}>
           <sphereGeometry args={[0.26, 12, 8]} />
-          <meshStandardMaterial color={config.playerColor} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} />
         </mesh>
         <mesh position={[0, 1.12, 0.12]} rotation={[0.3, 0, 0]}>
           <cylinderGeometry args={[0.3, 0.28, 0.06, 12]} />
-          <meshStandardMaterial color={config.playerColor} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} />
         </mesh>
         {/* Eyes */}
         <mesh position={[-0.08, 1.02, 0.2]}>
@@ -1314,11 +1192,11 @@ function SceneContent({
         {/* Arms */}
         <mesh position={[-0.38, 0.55, 0]} rotation={[0, 0, 0.4]}>
           <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
-          <meshStandardMaterial color={config.playerColor} roughness={0.6} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
         </mesh>
         <mesh position={[0.38, 0.55, 0]} rotation={[0, 0, -0.4]}>
           <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
-          <meshStandardMaterial color={config.playerColor} roughness={0.6} />
+          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
         </mesh>
         {/* Hands */}
         <mesh position={[-0.48, 0.38, 0]}>
@@ -1351,8 +1229,7 @@ function SceneContent({
 
       {/* Bot Players - improved character */}
       {botsRef.current.map((bot, i) => {
-        const availableColors = PLAYER_COLORS.filter(c => c !== config.playerColor);
-        const botColor = availableColors[i] || '#888';
+        const botColor = PLAYER_COLORS[i + 1] || '#888';
         return (
           <group key={`botG-${i}`} ref={el => { botGroupRefs.current[i] = el; }} position={[bot.x, 0, bot.z]}>
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
@@ -1510,34 +1387,6 @@ function SceneContent({
           />
         </mesh>
       ))}
-
-      {/* Moving Obstacles */}
-      {obstacles.current.map((obs, i) => (
-        <group key={`obs-${i}`} ref={el => { obstacleRefs.current[i] = el; }} position={[obs.x, 0.3, obs.z]}>
-          {obs.type === 'log' ? (
-            <mesh rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.25, 0.25, 1.2, 8]} />
-              <meshStandardMaterial color="#6b4226" roughness={0.9} />
-            </mesh>
-          ) : obs.type === 'boulder' ? (
-            <mesh>
-              <dodecahedronGeometry args={[0.5, 1]} />
-              <meshStandardMaterial color="#5a5a5a" roughness={0.85} />
-            </mesh>
-          ) : (
-            <group>
-              <mesh>
-                <boxGeometry args={[1.5, 0.15, 0.15]} />
-                <meshStandardMaterial color="#8a4af0" emissive="#6a2ad0" emissiveIntensity={0.3} />
-              </mesh>
-              <mesh>
-                <boxGeometry args={[0.15, 0.15, 1.5]} />
-                <meshStandardMaterial color="#8a4af0" emissive="#6a2ad0" emissiveIntensity={0.3} />
-              </mesh>
-            </group>
-          )}
-        </group>
-      ))}
     </>
   );
 }
@@ -1561,7 +1410,7 @@ export default function GameWorld({
     const interval = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) {
-          setGameOver(true); soundGameOver();
+          setGameOver(true);
           clearInterval(interval);
           return 0;
         }
@@ -1582,7 +1431,7 @@ export default function GameWorld({
   }, [hudData.scores, onGameEnd]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a' }} onClick={resumeAudio}>
+    <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a' }}>
       <Canvas
         shadows
         camera={{ position: [0, 22, 14], fov: 50, near: 0.1, far: 120 }}

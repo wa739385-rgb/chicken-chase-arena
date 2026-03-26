@@ -1,25 +1,20 @@
 import { useState } from 'react';
-import { GameConfig, GameMode, GameMapId, GAME_MODES, GAME_MAPS, DEFAULT_GAME_TIME, PLAYER_COLORS } from '@/types/game';
+import { GameConfig, GameMode, GameMapId, GAME_MODES, GAME_MAPS, DEFAULT_GAME_TIME } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 interface MainMenuProps {
   onStartGame: (config: GameConfig) => void;
+  initialRoomCode?: string;
 }
 
-const COLOR_OPTIONS = [
-  { color: '#e74c3c', name: 'أحمر', icon: '🔴' },
-  { color: '#3498db', name: 'أزرق', icon: '🔵' },
-  { color: '#2ecc71', name: 'أخضر', icon: '🟢' },
-  { color: '#f1c40f', name: 'أصفر', icon: '🟡' },
-];
+const MAX_PLAYERS = 4;
 
 export default function MainMenu({ onStartGame }: MainMenuProps) {
   const [selectedMode, setSelectedMode] = useState<GameMode>('normal');
   const [selectedMap, setSelectedMap] = useState<GameMapId>('farm');
   const [playerName, setPlayerName] = useState('');
   const [botCount, setBotCount] = useState(3);
-  const [playerColor, setPlayerColor] = useState('#e74c3c');
 
   const handleStart = () => {
     onStartGame({
@@ -29,7 +24,6 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
       maxTime: DEFAULT_GAME_TIME,
       botCount,
       mapId: selectedMap,
-      playerColor,
     });
   };
 
@@ -50,20 +44,20 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
         ))}
       </div>
 
-      <div className="w-full max-w-lg relative z-10 max-h-[95vh] overflow-y-auto scrollbar-thin">
+      <div className="w-full max-w-lg relative z-10">
         {/* Title */}
-        <div className="text-center mb-5">
-          <div className="text-6xl mb-2">🐔</div>
+        <div className="text-center mb-6">
+          <div className="text-7xl mb-2">🐔</div>
           <h1 className="text-5xl font-cairo font-black drop-shadow-2xl mb-1"
             style={{ color: '#FFD700', textShadow: '0 4px 20px rgba(255,215,0,0.4)' }}>
             صيد الفراخ
           </h1>
-          <p className="text-base font-cairo font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <p className="text-lg font-cairo font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>
             من سيجمع أكثر؟ 🏆
           </p>
         </div>
 
-        <div className="rounded-3xl p-5 shadow-2xl space-y-4 border"
+        <div className="rounded-3xl p-6 shadow-2xl space-y-5 border"
           style={{ background: 'rgba(30,15,50,0.92)', borderColor: 'rgba(160,100,255,0.2)' }}>
           
           {/* Name input */}
@@ -74,45 +68,23 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
             className="text-center text-lg font-cairo h-12 rounded-xl bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
           />
 
-          {/* Color Selection */}
-          <div>
-            <h3 className="text-sm font-cairo font-black text-foreground mb-2">🎨 اختر لونك</h3>
-            <div className="flex gap-2 justify-center">
-              {COLOR_OPTIONS.map(c => (
-                <button
-                  key={c.color}
-                  onClick={() => setPlayerColor(c.color)}
-                  className={`w-12 h-12 rounded-xl transition-all flex items-center justify-center text-lg border-2 ${
-                    playerColor === c.color ? 'scale-110 shadow-lg' : 'opacity-60 hover:opacity-90'
-                  }`}
-                  style={{
-                    backgroundColor: c.color + '30',
-                    borderColor: playerColor === c.color ? c.color : 'transparent',
-                  }}
-                >
-                  {c.icon}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Mode Selection */}
           <div>
-            <h3 className="text-sm font-cairo font-black text-foreground mb-2">🎮 اختر طور اللعبة</h3>
-            <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+            <h3 className="text-base font-cairo font-black text-foreground mb-2">🎮 اختر طور اللعبة</h3>
+            <div className="grid grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1">
               {GAME_MODES.map(m => (
                 <button
                   key={m.id}
                   onClick={() => setSelectedMode(m.id)}
-                  className={`p-2 rounded-xl text-right transition-all font-cairo border ${
+                  className={`p-2.5 rounded-xl text-right transition-all font-cairo border ${
                     selectedMode === m.id
                       ? 'border-primary shadow-md scale-[1.02]'
                       : 'border-transparent hover:bg-muted/50'
                   }`}
                   style={selectedMode === m.id ? { background: 'rgba(160,100,255,0.15)' } : {}}
                 >
-                  <div className="font-bold text-xs text-foreground">{m.icon} {m.name}</div>
-                  <div className="text-[9px] text-muted-foreground leading-tight">{m.desc}</div>
+                  <div className="font-bold text-sm text-foreground">{m.icon} {m.name}</div>
+                  <div className="text-[10px] text-muted-foreground leading-tight">{m.desc}</div>
                 </button>
               ))}
             </div>
@@ -120,21 +92,21 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
 
           {/* Map Selection */}
           <div>
-            <h3 className="text-sm font-cairo font-black text-foreground mb-2">🗺️ اختر الخريطة</h3>
-            <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
+            <h3 className="text-base font-cairo font-black text-foreground mb-2">🗺️ اختر الخريطة</h3>
+            <div className="grid grid-cols-3 gap-1.5">
               {GAME_MAPS.map(m => (
                 <button
                   key={m.id}
                   onClick={() => setSelectedMap(m.id)}
-                  className={`p-2 rounded-xl text-center transition-all font-cairo border ${
+                  className={`p-2.5 rounded-xl text-center transition-all font-cairo border ${
                     selectedMap === m.id
                       ? 'border-primary shadow-md scale-[1.02]'
                       : 'border-transparent hover:bg-muted/50'
                   }`}
                   style={selectedMap === m.id ? { background: 'rgba(160,100,255,0.15)' } : {}}
                 >
-                  <div className="text-xl mb-0.5">{m.icon}</div>
-                  <div className="font-bold text-[10px] text-foreground">{m.name}</div>
+                  <div className="text-2xl mb-0.5">{m.icon}</div>
+                  <div className="font-bold text-xs text-foreground">{m.name}</div>
                 </button>
               ))}
             </div>
@@ -142,7 +114,7 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
 
           {/* Bot count */}
           <div>
-            <h3 className="text-sm font-cairo font-black text-foreground mb-2">🤖 عدد البوتات</h3>
+            <h3 className="text-base font-cairo font-black text-foreground mb-2">🤖 عدد البوتات</h3>
             <div className="flex gap-2">
               {[1, 2, 3].map(n => (
                 <button
@@ -162,20 +134,17 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
 
           {/* Players preview */}
           <div>
-            <h3 className="text-sm font-cairo font-black text-foreground mb-2">👥 اللاعبون</h3>
+            <h3 className="text-base font-cairo font-black text-foreground mb-2">👥 اللاعبون</h3>
             <div className="flex flex-wrap gap-2">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-cairo font-bold"
-                style={{ background: playerColor + '30', color: playerColor }}>
+                style={{ background: 'rgba(231,76,60,0.2)', color: '#e74c3c' }}>
                 👤 {playerName || 'أنت'}
               </div>
-              {Array.from({ length: botCount }).map((_, i) => {
-                const botColors = PLAYER_COLORS.filter(c => c !== playerColor);
-                return (
-                  <div key={i} className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-xl text-sm font-cairo text-muted-foreground">
-                    🤖 بوت {i + 1}
-                  </div>
-                );
-              })}
+              {Array.from({ length: botCount }).map((_, i) => (
+                <div key={i} className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-xl text-sm font-cairo text-muted-foreground">
+                  🤖 بوت {i + 1}
+                </div>
+              ))}
             </div>
           </div>
 
