@@ -2,7 +2,7 @@ export type GameMode = 'normal' | 'theft' | 'invisible' | 'king' | 'challenges' 
 export type GamePhase = 'menu' | 'lobby' | 'playing' | 'results';
 export type ChickenType = 'normal' | 'fast' | 'teleport' | 'explosive' | 'golden';
 export type AbilityType = 'speed' | 'magnet' | 'invisible' | 'freeze';
-export type GameMapId = 'farm' | 'desert' | 'snow' | 'night' | 'volcano' | 'space';
+export type GameMapId = 'farm' | 'desert' | 'snow' | 'night' | 'volcano' | 'space' | 'jungle' | 'underwater' | 'candy';
 
 export interface MapConfig {
   id: GameMapId;
@@ -21,7 +21,7 @@ export interface MapConfig {
   fogFar?: number;
   grassPatches: string;
   hasTrees: boolean;
-  decorationType: 'trees' | 'cacti' | 'snowballs' | 'rocks' | 'lava' | 'crystals';
+  decorationType: 'trees' | 'cacti' | 'snowballs' | 'rocks' | 'lava' | 'crystals' | 'seaweed' | 'candy';
 }
 
 export const GAME_MAPS: MapConfig[] = [
@@ -70,6 +70,28 @@ export const GAME_MAPS: MapConfig[] = [
     fogColor: '#050510', fogNear: 25, fogFar: 70,
     hasTrees: false, decorationType: 'crystals',
   },
+  {
+    id: 'jungle', name: 'الغابة', icon: '🌴',
+    groundColor: '#2d5a1e', arenaColor: '#4a6b2a', arenaBorderColor: '#3a5a20',
+    treeColor1: '#1a6b1a', treeColor2: '#0d5a0d', trunkColor: '#5a3a10',
+    skyColor: '#6aaa4a', ambientIntensity: 0.55, grassPatches: '#3a7a1a',
+    hasTrees: true, decorationType: 'trees',
+  },
+  {
+    id: 'underwater', name: 'تحت البحر', icon: '🌊',
+    groundColor: '#1a3a5a', arenaColor: '#2a4a6a', arenaBorderColor: '#1a3a55',
+    treeColor1: '#1a6a5a', treeColor2: '#0a5a4a', trunkColor: '#3a5a4a',
+    skyColor: '#0a2a4a', ambientIntensity: 0.45, grassPatches: '#1a4a5a',
+    fogColor: '#0a2a4a', fogNear: 15, fogFar: 50,
+    hasTrees: false, decorationType: 'seaweed',
+  },
+  {
+    id: 'candy', name: 'أرض الحلوى', icon: '🍭',
+    groundColor: '#f0a0c0', arenaColor: '#e8c0d0', arenaBorderColor: '#d0a0b8',
+    treeColor1: '#e060a0', treeColor2: '#a040e0', trunkColor: '#f0c080',
+    skyColor: '#ffe0f0', ambientIntensity: 0.8, grassPatches: '#e0b0d0',
+    hasTrees: false, decorationType: 'candy',
+  },
 ];
 
 export interface GameConfig {
@@ -79,6 +101,7 @@ export interface GameConfig {
   maxTime: number;
   botCount: number;
   mapId: GameMapId;
+  playerColor: string;
 }
 
 export interface PlayerScore {
