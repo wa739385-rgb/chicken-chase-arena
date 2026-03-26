@@ -1351,7 +1351,8 @@ function SceneContent({
 
       {/* Bot Players - improved character */}
       {botsRef.current.map((bot, i) => {
-        const botColor = PLAYER_COLORS[i + 1] || '#888';
+        const availableColors = PLAYER_COLORS.filter(c => c !== config.playerColor);
+        const botColor = availableColors[i] || '#888';
         return (
           <group key={`botG-${i}`} ref={el => { botGroupRefs.current[i] = el; }} position={[bot.x, 0, bot.z]}>
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
@@ -1508,6 +1509,34 @@ function SceneContent({
             emissiveIntensity={0.4}
           />
         </mesh>
+      ))}
+
+      {/* Moving Obstacles */}
+      {obstacles.current.map((obs, i) => (
+        <group key={`obs-${i}`} ref={el => { obstacleRefs.current[i] = el; }} position={[obs.x, 0.3, obs.z]}>
+          {obs.type === 'log' ? (
+            <mesh rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.25, 0.25, 1.2, 8]} />
+              <meshStandardMaterial color="#6b4226" roughness={0.9} />
+            </mesh>
+          ) : obs.type === 'boulder' ? (
+            <mesh>
+              <dodecahedronGeometry args={[0.5, 1]} />
+              <meshStandardMaterial color="#5a5a5a" roughness={0.85} />
+            </mesh>
+          ) : (
+            <group>
+              <mesh>
+                <boxGeometry args={[1.5, 0.15, 0.15]} />
+                <meshStandardMaterial color="#8a4af0" emissive="#6a2ad0" emissiveIntensity={0.3} />
+              </mesh>
+              <mesh>
+                <boxGeometry args={[0.15, 0.15, 1.5]} />
+                <meshStandardMaterial color="#8a4af0" emissive="#6a2ad0" emissiveIntensity={0.3} />
+              </mesh>
+            </group>
+          )}
+        </group>
       ))}
     </>
   );
