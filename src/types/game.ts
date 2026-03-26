@@ -21,7 +21,7 @@ export interface MapConfig {
   fogFar?: number;
   grassPatches: string;
   hasTrees: boolean;
-  decorationType: 'trees' | 'cacti' | 'snowballs' | 'rocks' | 'lava' | 'crystals';
+  decorationType: 'trees' | 'cacti' | 'snowballs' | 'rocks' | 'lava' | 'crystals' | 'seaweed' | 'candy';
 }
 
 export const GAME_MAPS: MapConfig[] = [
