@@ -1561,7 +1561,7 @@ export default function GameWorld({
     const interval = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) {
-          setGameOver(true);
+          setGameOver(true); soundGameOver();
           clearInterval(interval);
           return 0;
         }
