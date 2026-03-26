@@ -286,15 +286,70 @@ function Ground({ mapConfig }: { mapConfig: MapConfig }) {
           </mesh>
         </group>
       ))}
-      {mapConfig.decorationType === 'crystals' && outerDecorations.map((d, i) => (
-        <group key={`srock-${i}`} position={[d.x, 0, d.z]}>
-          <mesh position={[0, 0.2, 0]}>
-            <dodecahedronGeometry args={[0.3 * d.scale, 0]} />
-            <meshStandardMaterial color="#1a1a3a" />
+      {/* Seaweed (underwater) */}
+      {mapConfig.decorationType === 'seaweed' && decorations.map((d, i) => (
+        <group key={`seaweed-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.4 * d.scale, 0]}>
+            <cylinderGeometry args={[0.04, 0.08, 0.8 * d.scale, 6]} />
+            <meshStandardMaterial color="#1a8a5a" />
+          </mesh>
+          <mesh position={[0.1, 0.6 * d.scale, 0]}>
+            <cylinderGeometry args={[0.03, 0.06, 0.5 * d.scale, 6]} />
+            <meshStandardMaterial color="#2aaa6a" />
           </mesh>
           {i % 2 === 0 && (
-            <pointLight position={[d.x, 0.8, d.z]} color="#8a4af0" intensity={0.4} distance={5} />
+            <mesh position={[-0.1, 0.3 * d.scale, 0]}>
+              <sphereGeometry args={[0.12 * d.scale, 8, 8]} />
+              <meshStandardMaterial color="#2a6a9a" transparent opacity={0.5} />
+            </mesh>
           )}
+        </group>
+      ))}
+      {mapConfig.decorationType === 'seaweed' && outerDecorations.map((d, i) => (
+        <group key={`coral-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.2 * d.scale, 0]}>
+            <dodecahedronGeometry args={[0.3 * d.scale, 0]} />
+            <meshStandardMaterial color={i % 2 === 0 ? '#e05050' : '#e0a030'} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Candy decorations */}
+      {mapConfig.decorationType === 'candy' && decorations.map((d, i) => (
+        <group key={`candy-${i}`} position={[d.x, 0, d.z]}>
+          {i % 3 === 0 ? (
+            // Lollipop
+            <>
+              <mesh position={[0, 0.5 * d.scale, 0]}>
+                <cylinderGeometry args={[0.04, 0.04, 1.0 * d.scale, 6]} />
+                <meshStandardMaterial color="#f0c080" />
+              </mesh>
+              <mesh position={[0, 1.1 * d.scale, 0]}>
+                <sphereGeometry args={[0.3 * d.scale, 10, 10]} />
+                <meshStandardMaterial color={i % 2 === 0 ? '#e060a0' : '#60a0e0'} />
+              </mesh>
+            </>
+          ) : i % 3 === 1 ? (
+            // Gummy bear shape
+            <mesh position={[0, 0.25 * d.scale, 0]}>
+              <capsuleGeometry args={[0.2 * d.scale, 0.2 * d.scale, 8, 8]} />
+              <meshStandardMaterial color={i % 2 === 0 ? '#e0e040' : '#40e060'} transparent opacity={0.8} />
+            </mesh>
+          ) : (
+            // Candy cane
+            <mesh position={[0, 0.4 * d.scale, 0]}>
+              <cylinderGeometry args={[0.06, 0.06, 0.8 * d.scale, 6]} />
+              <meshStandardMaterial color="#e04040" />
+            </mesh>
+          )}
+        </group>
+      ))}
+      {mapConfig.decorationType === 'candy' && outerDecorations.map((d, i) => (
+        <group key={`cdeco-${i}`} position={[d.x, 0, d.z]}>
+          <mesh position={[0, 0.3 * d.scale, 0]}>
+            <coneGeometry args={[0.3 * d.scale, 0.6 * d.scale, 8]} />
+            <meshStandardMaterial color={['#ff80c0', '#80c0ff', '#c0ff80', '#ffc080'][i % 4]} />
+          </mesh>
         </group>
       ))}
     </>
