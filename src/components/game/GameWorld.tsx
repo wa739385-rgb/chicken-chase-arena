@@ -12,6 +12,11 @@ import {
 } from '@/types/game';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import GameHUD from './GameHUD';
+import {
+  soundCatch, soundDeposit, soundSteal, soundLoseChicken,
+  soundFreeze, soundVolcano, soundLuckBox, soundGameOver,
+  soundAbility, soundObstacleHit, soundDarkness, resumeAudio,
+} from '@/utils/sounds';
 
 // ─── Internal Types ───
 interface ChickenState {
