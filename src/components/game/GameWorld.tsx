@@ -1582,7 +1582,7 @@ export default function GameWorld({
   }, [hudData.scores, onGameEnd]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a' }}>
+    <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a' }} onClick={resumeAudio}>
       <Canvas
         shadows
         camera={{ position: [0, 22, 14], fov: 50, near: 0.1, far: 120 }}
