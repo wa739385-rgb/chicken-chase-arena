@@ -848,6 +848,7 @@ function SceneContent({
           if (config.mode === 'invisible') c.visible = true;
           c.carriedBy = 0;
           localCarriedIdx.current = i;
+          soundCatch();
           break;
         }
       }
@@ -867,7 +868,7 @@ function SceneContent({
       c.depositedBase = playerBaseIdx;
       localCarriedIdx.current = -1;
       depositedCounts.current[playerBaseIdx]++;
-      showNotification(`+${points} نقطة!`);
+      showNotification(`+${points} نقطة!`); soundDeposit();
       respawnChickens(chickens);
     }
 
@@ -888,7 +889,7 @@ function SceneContent({
             inactiveC.deposited = false;
             inactiveC.x = pos.x; inactiveC.z = pos.z;
             localCarriedIdx.current = idx;
-            showNotification('🦹 سرقت فرخة!');
+            showNotification('🦹 سرقت فرخة!'); soundSteal();
           }
           stealCooldown.current = 3;
           break;
@@ -942,7 +943,7 @@ function SceneContent({
           const [nx, nz] = randomInArena();
           c.x = nx; c.z = nz; c.targetX = nx; c.targetZ = nz;
           localCarriedIdx.current = -1;
-          showNotification('🏃 أمسك بك الصياد!');
+          showNotification('🏃 أمسك بك الصياد!'); soundLoseChicken();
         }
         // If close to other bots, make them lose chicken too
         bots.forEach((otherBot, oi) => {
@@ -1079,7 +1080,7 @@ function SceneContent({
         case 'speed':
           if (isPlayer) {
             speedMult.current = 2;
-            showNotification('💨 سرعة مضاعفة!');
+            showNotification('💨 سرعة مضاعفة!'); soundLuckBox();
             setTimeout(() => { speedMult.current = 1; }, 5000);
           }
           // Bot speed boost is implicit (they already move)
@@ -1091,7 +1092,7 @@ function SceneContent({
             const [nx, nz] = randomInArena();
             c.x = nx; c.z = nz;
             localCarriedIdx.current = -1;
-            showNotification('😱 خسرت الفرخة!');
+            showNotification('😱 خسرت الفرخة!'); soundLoseChicken();
           } else if (!isPlayer && bots[entityIdx].carryingChickenIdx >= 0) {
             const c = chickens[bots[entityIdx].carryingChickenIdx];
             c.carriedBy = -1;
@@ -1103,14 +1104,14 @@ function SceneContent({
         case 'freeze':
           if (isPlayer) {
             bots.forEach(b => { b.frozen = true; b.frozenTimer = 4; });
-            showNotification('❄️ تجميد الخصوم!');
+            showNotification('❄️ تجميد الخصوم!'); soundFreeze();
           }
           // If bot picks it up, freeze player... we skip that for simplicity
           break;
         case 'double':
           if (isPlayer) {
             doublePoints.current = true;
-            showNotification('✨ نقاط مضاعفة!');
+            showNotification('✨ نقاط مضاعفة!'); soundLuckBox();
             setTimeout(() => { doublePoints.current = false; }, 10000);
           }
           break;
