@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GameConfig, GameMode, GameMapId, GAME_MODES, GAME_MAPS, DEFAULT_GAME_TIME } from '@/types/game';
+import { GameConfig, GameMode, GameMapId, GAME_MODES, GAME_MAPS, DEFAULT_GAME_TIME, OnlinePlayerInfo } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useOnlineRoom, TournamentRound } from '@/hooks/useOnlineRoom';
