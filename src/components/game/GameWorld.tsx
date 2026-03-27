@@ -1123,20 +1123,94 @@ function SceneContent({
     // ── Notification timer ──
     if (notificationTimer.current > 0) notificationTimer.current -= delta;
 
+    // ── Broadcast local position to online players ──
+    if (config.isOnline && broadcastChannelRef.current) {
+      broadcastTimer.current += delta;
+      if (broadcastTimer.current > 0.05) { // ~20 times/sec
+        broadcastTimer.current = 0;
+        const mySession = config.onlinePlayers?.[playerIdx]?.sessionId;
+        if (mySession) {
+          broadcastChannelRef.current.send({
+            type: 'broadcast',
+            event: 'player_pos',
+            payload: {
+              sessionId: mySession,
+              x: pos.x,
+              z: pos.z,
+              angle: playerAngle.current,
+              score: localScore.current,
+              carrying: localCarriedIdx.current >= 0,
+            },
+          });
+        }
+      }
+    }
+
+    // ── Update remote player group positions ──
+    if (config.isOnline && config.onlinePlayers) {
+      config.onlinePlayers.forEach((op, i) => {
+        if (i === playerIdx) return; // skip self
+        const remote = remotePlayersRef.current.get(op.sessionId);
+        const grp = remotePlayerGroupRefs.current.get(op.sessionId);
+        if (remote && grp) {
+          // Smooth interpolation
+          grp.position.x += (remote.x - grp.position.x) * 0.2;
+          grp.position.z += (remote.z - grp.position.z) * 0.2;
+          grp.position.y = config.mapId === 'space' ? Math.sin(Date.now() * 0.002 + i) * 0.3 + 0.3 : 0;
+          grp.rotation.y = remote.angle;
+        }
+      });
+    }
+
     // ── HUD Update ──
     hudTimer.current += delta;
     if (hudTimer.current > 0.15) {
       hudTimer.current = 0;
-      const scores: PlayerScore[] = [
-        { id: 'local', name: config.playerName || PLAYER_NAMES_AR[0], color: PLAYER_COLORS[0], score: localScore.current },
-        ...bots.map((b, i) => ({
-          id: `bot-${i}`, name: PLAYER_NAMES_AR[i + 1] || `بوت ${i + 1}`,
-          color: PLAYER_COLORS[i + 1] || '#888', score: b.score,
-        })),
-      ];
+      const scores: PlayerScore[] = [];
+      
+      // Add all online players to scores
+      if (config.isOnline && config.onlinePlayers) {
+        config.onlinePlayers.forEach((op, i) => {
+          if (i === playerIdx) {
+            scores.push({
+              id: 'local',
+              name: config.playerName || PLAYER_NAMES_AR[i],
+              color: PLAYER_COLORS[i] || '#888',
+              score: localScore.current,
+            });
+          } else {
+            const remote = remotePlayersRef.current.get(op.sessionId);
+            scores.push({
+              id: `online-${i}`,
+              name: op.name || PLAYER_NAMES_AR[i],
+              color: PLAYER_COLORS[i] || '#888',
+              score: remote?.score || 0,
+            });
+          }
+        });
+      } else {
+        scores.push({
+          id: 'local',
+          name: config.playerName || PLAYER_NAMES_AR[0],
+          color: PLAYER_COLORS[0],
+          score: localScore.current,
+        });
+      }
+      
+      // Add bots
+      bots.forEach((b, i) => {
+        const botDisplayIdx = onlineCount > 0 ? onlineCount + i : i + 1;
+        scores.push({
+          id: `bot-${i}`,
+          name: PLAYER_NAMES_AR[botDisplayIdx] || `بوت ${i + 1}`,
+          color: PLAYER_COLORS[botDisplayIdx] || '#888',
+          score: b.score,
+        });
+      });
+
       if (config.mode === 'teams') {
         scores.forEach((s, i) => {
-          s.team = i <= 1 ? 0 : 1; // First 2 = team 0, rest = team 1
+          s.team = i <= 1 ? 0 : 1;
         });
       }
       onHudUpdate({
