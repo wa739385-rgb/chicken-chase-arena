@@ -94,6 +94,90 @@ function getBotBaseIndex(botIndex: number, mode: string): number {
   return botIndex + 1;
 }
 
+// ─── Reusable Player Character ───
+function PlayerCharacter({ color }: { color: string }) {
+  return (
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <circleGeometry args={[0.45, 16]} />
+        <meshStandardMaterial color="#000" transparent opacity={0.2} />
+      </mesh>
+      <mesh position={[0, 0.5, 0]}>
+        <capsuleGeometry args={[0.28, 0.4, 12, 16]} />
+        <meshStandardMaterial color={color} roughness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.32, 0]}>
+        <cylinderGeometry args={[0.29, 0.29, 0.06, 16]} />
+        <meshStandardMaterial color="#2a1a00" />
+      </mesh>
+      <mesh position={[0, 1.0, 0]}>
+        <sphereGeometry args={[0.24, 16, 16]} />
+        <meshStandardMaterial color="#f5d5a8" roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 1.18, 0]}>
+        <sphereGeometry args={[0.26, 12, 8]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[0, 1.12, 0.12]} rotation={[0.3, 0, 0]}>
+        <cylinderGeometry args={[0.3, 0.28, 0.06, 12]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[-0.08, 1.02, 0.2]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+      <mesh position={[0.08, 1.02, 0.2]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+      <mesh position={[-0.08, 1.02, 0.24]}>
+        <sphereGeometry args={[0.025, 6, 6]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0.08, 1.02, 0.24]}>
+        <sphereGeometry args={[0.025, 6, 6]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0, 0.94, 0.22]} rotation={[0.2, 0, 0]}>
+        <torusGeometry args={[0.04, 0.012, 8, 8, Math.PI]} />
+        <meshStandardMaterial color="#c0785a" />
+      </mesh>
+      <mesh position={[-0.38, 0.55, 0]} rotation={[0, 0, 0.4]}>
+        <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
+        <meshStandardMaterial color={color} roughness={0.6} />
+      </mesh>
+      <mesh position={[0.38, 0.55, 0]} rotation={[0, 0, -0.4]}>
+        <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
+        <meshStandardMaterial color={color} roughness={0.6} />
+      </mesh>
+      <mesh position={[-0.48, 0.38, 0]}>
+        <sphereGeometry args={[0.07, 8, 8]} />
+        <meshStandardMaterial color="#f5d5a8" />
+      </mesh>
+      <mesh position={[0.48, 0.38, 0]}>
+        <sphereGeometry args={[0.07, 8, 8]} />
+        <meshStandardMaterial color="#f5d5a8" />
+      </mesh>
+      <mesh position={[-0.12, 0.12, 0]}>
+        <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
+        <meshStandardMaterial color="#3a2a10" />
+      </mesh>
+      <mesh position={[0.12, 0.12, 0]}>
+        <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
+        <meshStandardMaterial color="#3a2a10" />
+      </mesh>
+      <mesh position={[-0.12, 0.02, 0.04]}>
+        <boxGeometry args={[0.12, 0.06, 0.18]} />
+        <meshStandardMaterial color="#2a1a0a" />
+      </mesh>
+      <mesh position={[0.12, 0.02, 0.04]}>
+        <boxGeometry args={[0.12, 0.06, 0.18]} />
+        <meshStandardMaterial color="#2a1a0a" />
+      </mesh>
+    </>
+  );
+}
+
 // ─── 3D Sub-components ───
 function Ground({ mapConfig }: { mapConfig: MapConfig }) {
   // Pre-calculate static decoration positions using deterministic seed
