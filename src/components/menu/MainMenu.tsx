@@ -71,6 +71,12 @@ export default function MainMenu({ onStartGame, joinCode }: MainMenuProps) {
 
   const handleStartOnlineGame = () => {
     const botSlots = Math.max(0, 4 - room.players.length);
+    const onlinePlayers = room.players.map((p, i) => ({
+      sessionId: p.session_id,
+      name: p.player_name,
+      index: i,
+    }));
+    const myIndex = room.players.findIndex(p => p.session_id === room.sessionId);
     const config: GameConfig = {
       mode: isTournament ? tournamentRounds[0].mode : selectedMode,
       roomCode: room.roomCode,
@@ -78,6 +84,10 @@ export default function MainMenu({ onStartGame, joinCode }: MainMenuProps) {
       maxTime: DEFAULT_GAME_TIME,
       botCount: botSlots,
       mapId: isTournament ? tournamentRounds[0].mapId : selectedMap,
+      playerIndex: myIndex >= 0 ? myIndex : 0,
+      onlinePlayers,
+      isOnline: true,
+      supabaseRoomId: room.roomId || undefined,
     };
     room.startGame(config, isTournament ? tournamentRounds : undefined);
   };
