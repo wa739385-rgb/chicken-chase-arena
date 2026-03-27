@@ -72,6 +72,12 @@ export const GAME_MAPS: MapConfig[] = [
   },
 ];
 
+export interface OnlinePlayerInfo {
+  sessionId: string;
+  name: string;
+  index: number; // 0-3 player slot
+}
+
 export interface GameConfig {
   mode: GameMode;
   roomCode: string;
@@ -79,6 +85,10 @@ export interface GameConfig {
   maxTime: number;
   botCount: number;
   mapId: GameMapId;
+  playerIndex?: number; // which slot this player controls (0-3), default 0
+  onlinePlayers?: OnlinePlayerInfo[];
+  isOnline?: boolean;
+  supabaseRoomId?: string; // for broadcast channel
 }
 
 export interface PlayerScore {

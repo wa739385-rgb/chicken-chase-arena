@@ -12,6 +12,16 @@ import {
 } from '@/types/game';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import GameHUD from './GameHUD';
+import { supabase } from '@/integrations/supabase/client';
+
+// ─── Online player position state ───
+interface RemotePlayerState {
+  x: number;
+  z: number;
+  angle: number;
+  score: number;
+  carrying: boolean;
+}
 
 // ─── Internal Types ───
 interface ChickenState {
@@ -73,14 +83,99 @@ function createBot(index: number, mode: string): BotState {
   };
 }
 
-function getBasesForMode(mode: string, botCount: number) {
+function getBasesForMode(mode: string, botCount: number, onlineCount: number = 0) {
   if (mode === 'teams') return TEAM_BASE_POSITIONS;
-  return BASE_POSITIONS.slice(0, botCount + 1);
+  const totalPlayers = Math.max(1, (onlineCount > 0 ? onlineCount : 1) + botCount);
+  return BASE_POSITIONS.slice(0, Math.min(totalPlayers, 4));
 }
 
 function getBotBaseIndex(botIndex: number, mode: string): number {
   if (mode === 'teams') return botIndex < 2 ? 0 : 1;
   return botIndex + 1;
+}
+
+// ─── Reusable Player Character ───
+function PlayerCharacter({ color }: { color: string }) {
+  return (
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <circleGeometry args={[0.45, 16]} />
+        <meshStandardMaterial color="#000" transparent opacity={0.2} />
+      </mesh>
+      <mesh position={[0, 0.5, 0]}>
+        <capsuleGeometry args={[0.28, 0.4, 12, 16]} />
+        <meshStandardMaterial color={color} roughness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.32, 0]}>
+        <cylinderGeometry args={[0.29, 0.29, 0.06, 16]} />
+        <meshStandardMaterial color="#2a1a00" />
+      </mesh>
+      <mesh position={[0, 1.0, 0]}>
+        <sphereGeometry args={[0.24, 16, 16]} />
+        <meshStandardMaterial color="#f5d5a8" roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 1.18, 0]}>
+        <sphereGeometry args={[0.26, 12, 8]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[0, 1.12, 0.12]} rotation={[0.3, 0, 0]}>
+        <cylinderGeometry args={[0.3, 0.28, 0.06, 12]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[-0.08, 1.02, 0.2]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+      <mesh position={[0.08, 1.02, 0.2]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+      <mesh position={[-0.08, 1.02, 0.24]}>
+        <sphereGeometry args={[0.025, 6, 6]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0.08, 1.02, 0.24]}>
+        <sphereGeometry args={[0.025, 6, 6]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0, 0.94, 0.22]} rotation={[0.2, 0, 0]}>
+        <torusGeometry args={[0.04, 0.012, 8, 8, Math.PI]} />
+        <meshStandardMaterial color="#c0785a" />
+      </mesh>
+      <mesh position={[-0.38, 0.55, 0]} rotation={[0, 0, 0.4]}>
+        <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
+        <meshStandardMaterial color={color} roughness={0.6} />
+      </mesh>
+      <mesh position={[0.38, 0.55, 0]} rotation={[0, 0, -0.4]}>
+        <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
+        <meshStandardMaterial color={color} roughness={0.6} />
+      </mesh>
+      <mesh position={[-0.48, 0.38, 0]}>
+        <sphereGeometry args={[0.07, 8, 8]} />
+        <meshStandardMaterial color="#f5d5a8" />
+      </mesh>
+      <mesh position={[0.48, 0.38, 0]}>
+        <sphereGeometry args={[0.07, 8, 8]} />
+        <meshStandardMaterial color="#f5d5a8" />
+      </mesh>
+      <mesh position={[-0.12, 0.12, 0]}>
+        <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
+        <meshStandardMaterial color="#3a2a10" />
+      </mesh>
+      <mesh position={[0.12, 0.12, 0]}>
+        <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
+        <meshStandardMaterial color="#3a2a10" />
+      </mesh>
+      <mesh position={[-0.12, 0.02, 0.04]}>
+        <boxGeometry args={[0.12, 0.06, 0.18]} />
+        <meshStandardMaterial color="#2a1a0a" />
+      </mesh>
+      <mesh position={[0.12, 0.02, 0.04]}>
+        <boxGeometry args={[0.12, 0.06, 0.18]} />
+        <meshStandardMaterial color="#2a1a0a" />
+      </mesh>
+    </>
+  );
 }
 
 // ─── 3D Sub-components ───
@@ -379,9 +474,11 @@ function SceneContent({
 }) {
   const { camera } = useThree();
   const mapConfig = GAME_MAPS.find(m => m.id === config.mapId) || GAME_MAPS[0];
-  const bases = getBasesForMode(config.mode, config.botCount);
-  const playerBaseIdx = config.mode === 'teams' ? 0 : 0;
-  const playerPos = useRef({ x: bases[playerBaseIdx][0], z: bases[playerBaseIdx][2] });
+  const onlineCount = config.onlinePlayers?.length || 0;
+  const bases = getBasesForMode(config.mode, config.botCount, onlineCount);
+  const playerIdx = config.playerIndex || 0;
+  const playerBaseIdx = config.mode === 'teams' ? (playerIdx < 2 ? 0 : 1) : Math.min(playerIdx, bases.length - 1);
+  const playerPos = useRef({ x: bases[playerBaseIdx]?.[0] || 0, z: bases[playerBaseIdx]?.[2] || 0 });
   const playerAngle = useRef(0);
   const playerGroupRef = useRef<THREE.Group>(null);
   const chickensRef = useRef<ChickenState[]>(
@@ -391,10 +488,23 @@ function SceneContent({
     })
   );
   const chickenGroupRefs = useRef<(THREE.Group | null)[]>([]);
+
+  // Bots: only fill slots not taken by online players
+  // Bot indices start after online player slots
   const botsRef = useRef<BotState[]>(
-    Array.from({ length: config.botCount }, (_, i) => createBot(i, config.mode))
+    Array.from({ length: config.botCount }, (_, i) => {
+      const botSlotIdx = onlineCount + i; // bot occupies slot after online players
+      return createBot(botSlotIdx > 0 ? botSlotIdx - 1 : i, config.mode);
+    })
   );
   const botGroupRefs = useRef<(THREE.Group | null)[]>([]);
+
+  // Remote online players state
+  const remotePlayersRef = useRef<Map<string, RemotePlayerState>>(new Map());
+  const remotePlayerGroupRefs = useRef<Map<string, THREE.Group | null>>(new Map());
+  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const broadcastTimer = useRef(0);
+
   const localScore = useRef(0);
   const localCarriedIdx = useRef(-1);
   const speedMult = useRef(1);
@@ -421,6 +531,45 @@ function SceneContent({
   const nightDarknessTimer = useRef(0);
   const playerFloatY = useRef(0); // space floating
 
+  // ── Online broadcast setup ──
+  useEffect(() => {
+    if (!config.isOnline || !config.supabaseRoomId) return;
+    
+    const channel = supabase.channel(`game:${config.supabaseRoomId}`, {
+      config: { broadcast: { self: false } },
+    });
+
+    channel.on('broadcast', { event: 'player_pos' }, (payload) => {
+      const data = payload.payload as {
+        sessionId: string;
+        x: number;
+        z: number;
+        angle: number;
+        score: number;
+        carrying: boolean;
+      };
+      // Don't update self
+      const mySession = config.onlinePlayers?.find((_, i) => i === playerIdx)?.sessionId;
+      if (data.sessionId === mySession) return;
+      
+      remotePlayersRef.current.set(data.sessionId, {
+        x: data.x,
+        z: data.z,
+        angle: data.angle,
+        score: data.score,
+        carrying: data.carrying,
+      });
+    });
+
+    channel.subscribe();
+    broadcastChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      broadcastChannelRef.current = null;
+    };
+  }, [config.isOnline, config.supabaseRoomId]);
+
   // Assign random ability
   useEffect(() => {
     const abilities: AbilityType[] = ['speed', 'magnet', 'invisible', 'freeze'];
@@ -428,7 +577,6 @@ function SceneContent({
   }, []);
 
   useEffect(() => {
-    // Camera closer so players can see walls
     camera.position.set(0, 22, 14);
     camera.lookAt(0, 0, 0);
   }, [camera]);
@@ -1059,20 +1207,94 @@ function SceneContent({
     // ── Notification timer ──
     if (notificationTimer.current > 0) notificationTimer.current -= delta;
 
+    // ── Broadcast local position to online players ──
+    if (config.isOnline && broadcastChannelRef.current) {
+      broadcastTimer.current += delta;
+      if (broadcastTimer.current > 0.05) { // ~20 times/sec
+        broadcastTimer.current = 0;
+        const mySession = config.onlinePlayers?.[playerIdx]?.sessionId;
+        if (mySession) {
+          broadcastChannelRef.current.send({
+            type: 'broadcast',
+            event: 'player_pos',
+            payload: {
+              sessionId: mySession,
+              x: pos.x,
+              z: pos.z,
+              angle: playerAngle.current,
+              score: localScore.current,
+              carrying: localCarriedIdx.current >= 0,
+            },
+          });
+        }
+      }
+    }
+
+    // ── Update remote player group positions ──
+    if (config.isOnline && config.onlinePlayers) {
+      config.onlinePlayers.forEach((op, i) => {
+        if (i === playerIdx) return; // skip self
+        const remote = remotePlayersRef.current.get(op.sessionId);
+        const grp = remotePlayerGroupRefs.current.get(op.sessionId);
+        if (remote && grp) {
+          // Smooth interpolation
+          grp.position.x += (remote.x - grp.position.x) * 0.2;
+          grp.position.z += (remote.z - grp.position.z) * 0.2;
+          grp.position.y = config.mapId === 'space' ? Math.sin(Date.now() * 0.002 + i) * 0.3 + 0.3 : 0;
+          grp.rotation.y = remote.angle;
+        }
+      });
+    }
+
     // ── HUD Update ──
     hudTimer.current += delta;
     if (hudTimer.current > 0.15) {
       hudTimer.current = 0;
-      const scores: PlayerScore[] = [
-        { id: 'local', name: config.playerName || PLAYER_NAMES_AR[0], color: PLAYER_COLORS[0], score: localScore.current },
-        ...bots.map((b, i) => ({
-          id: `bot-${i}`, name: PLAYER_NAMES_AR[i + 1] || `بوت ${i + 1}`,
-          color: PLAYER_COLORS[i + 1] || '#888', score: b.score,
-        })),
-      ];
+      const scores: PlayerScore[] = [];
+      
+      // Add all online players to scores
+      if (config.isOnline && config.onlinePlayers) {
+        config.onlinePlayers.forEach((op, i) => {
+          if (i === playerIdx) {
+            scores.push({
+              id: 'local',
+              name: config.playerName || PLAYER_NAMES_AR[i],
+              color: PLAYER_COLORS[i] || '#888',
+              score: localScore.current,
+            });
+          } else {
+            const remote = remotePlayersRef.current.get(op.sessionId);
+            scores.push({
+              id: `online-${i}`,
+              name: op.name || PLAYER_NAMES_AR[i],
+              color: PLAYER_COLORS[i] || '#888',
+              score: remote?.score || 0,
+            });
+          }
+        });
+      } else {
+        scores.push({
+          id: 'local',
+          name: config.playerName || PLAYER_NAMES_AR[0],
+          color: PLAYER_COLORS[0],
+          score: localScore.current,
+        });
+      }
+      
+      // Add bots
+      bots.forEach((b, i) => {
+        const botDisplayIdx = onlineCount > 0 ? onlineCount + i : i + 1;
+        scores.push({
+          id: `bot-${i}`,
+          name: PLAYER_NAMES_AR[botDisplayIdx] || `بوت ${i + 1}`,
+          color: PLAYER_COLORS[botDisplayIdx] || '#888',
+          score: b.score,
+        });
+      });
+
       if (config.mode === 'teams') {
         scores.forEach((s, i) => {
-          s.team = i <= 1 ? 0 : 1; // First 2 = team 0, rest = team 1
+          s.team = i <= 1 ? 0 : 1;
         });
       }
       onHudUpdate({
@@ -1136,180 +1358,39 @@ function SceneContent({
         <BaseZone key={i} position={p} color={PLAYER_COLORS[i]} depositedCount={depositedCounts.current[i]} />
       ))}
 
-      {/* Local Player - improved character */}
+      {/* Local Player */}
       <group ref={playerGroupRef}>
-        {/* Shadow */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-          <circleGeometry args={[0.45, 16]} />
-          <meshStandardMaterial color="#000" transparent opacity={0.2} />
-        </mesh>
-        {/* Body - rounded torso */}
-        <mesh position={[0, 0.5, 0]}>
-          <capsuleGeometry args={[0.28, 0.4, 12, 16]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
-        </mesh>
-        {/* Belt */}
-        <mesh position={[0, 0.32, 0]}>
-          <cylinderGeometry args={[0.29, 0.29, 0.06, 16]} />
-          <meshStandardMaterial color="#2a1a00" />
-        </mesh>
-        {/* Head */}
-        <mesh position={[0, 1.0, 0]}>
-          <sphereGeometry args={[0.24, 16, 16]} />
-          <meshStandardMaterial color="#f5d5a8" roughness={0.5} />
-        </mesh>
-        {/* Hair/hat */}
-        <mesh position={[0, 1.18, 0]}>
-          <sphereGeometry args={[0.26, 12, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} />
-        </mesh>
-        <mesh position={[0, 1.12, 0.12]} rotation={[0.3, 0, 0]}>
-          <cylinderGeometry args={[0.3, 0.28, 0.06, 12]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} />
-        </mesh>
-        {/* Eyes */}
-        <mesh position={[-0.08, 1.02, 0.2]}>
-          <sphereGeometry args={[0.05, 8, 8]} />
-          <meshStandardMaterial color="#fff" />
-        </mesh>
-        <mesh position={[0.08, 1.02, 0.2]}>
-          <sphereGeometry args={[0.05, 8, 8]} />
-          <meshStandardMaterial color="#fff" />
-        </mesh>
-        <mesh position={[-0.08, 1.02, 0.24]}>
-          <sphereGeometry args={[0.025, 6, 6]} />
-          <meshStandardMaterial color="#222" />
-        </mesh>
-        <mesh position={[0.08, 1.02, 0.24]}>
-          <sphereGeometry args={[0.025, 6, 6]} />
-          <meshStandardMaterial color="#222" />
-        </mesh>
-        {/* Smile */}
-        <mesh position={[0, 0.94, 0.22]} rotation={[0.2, 0, 0]}>
-          <torusGeometry args={[0.04, 0.012, 8, 8, Math.PI]} />
-          <meshStandardMaterial color="#c0785a" />
-        </mesh>
-        {/* Arms */}
-        <mesh position={[-0.38, 0.55, 0]} rotation={[0, 0, 0.4]}>
-          <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
-        </mesh>
-        <mesh position={[0.38, 0.55, 0]} rotation={[0, 0, -0.4]}>
-          <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
-          <meshStandardMaterial color={PLAYER_COLORS[0]} roughness={0.6} />
-        </mesh>
-        {/* Hands */}
-        <mesh position={[-0.48, 0.38, 0]}>
-          <sphereGeometry args={[0.07, 8, 8]} />
-          <meshStandardMaterial color="#f5d5a8" />
-        </mesh>
-        <mesh position={[0.48, 0.38, 0]}>
-          <sphereGeometry args={[0.07, 8, 8]} />
-          <meshStandardMaterial color="#f5d5a8" />
-        </mesh>
-        {/* Legs */}
-        <mesh position={[-0.12, 0.12, 0]}>
-          <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
-          <meshStandardMaterial color="#3a2a10" />
-        </mesh>
-        <mesh position={[0.12, 0.12, 0]}>
-          <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
-          <meshStandardMaterial color="#3a2a10" />
-        </mesh>
-        {/* Shoes */}
-        <mesh position={[-0.12, 0.02, 0.04]}>
-          <boxGeometry args={[0.12, 0.06, 0.18]} />
-          <meshStandardMaterial color="#2a1a0a" />
-        </mesh>
-        <mesh position={[0.12, 0.02, 0.04]}>
-          <boxGeometry args={[0.12, 0.06, 0.18]} />
-          <meshStandardMaterial color="#2a1a0a" />
-        </mesh>
+        <PlayerCharacter color={PLAYER_COLORS[playerIdx] || PLAYER_COLORS[0]} />
       </group>
 
-      {/* Bot Players - improved character */}
+      {/* Bot Players */}
       {botsRef.current.map((bot, i) => {
-        const botColor = PLAYER_COLORS[i + 1] || '#888';
+        const botDisplayIdx = onlineCount > 0 ? onlineCount + i : i + 1;
+        const botColor = PLAYER_COLORS[botDisplayIdx] || '#888';
         return (
           <group key={`botG-${i}`} ref={el => { botGroupRefs.current[i] = el; }} position={[bot.x, 0, bot.z]}>
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-              <circleGeometry args={[0.45, 16]} />
-              <meshStandardMaterial color="#000" transparent opacity={0.2} />
-            </mesh>
-            <mesh position={[0, 0.5, 0]}>
-              <capsuleGeometry args={[0.28, 0.4, 12, 16]} />
-              <meshStandardMaterial color={botColor} roughness={0.6} />
-            </mesh>
-            <mesh position={[0, 0.32, 0]}>
-              <cylinderGeometry args={[0.29, 0.29, 0.06, 16]} />
-              <meshStandardMaterial color="#2a1a00" />
-            </mesh>
-            <mesh position={[0, 1.0, 0]}>
-              <sphereGeometry args={[0.24, 16, 16]} />
-              <meshStandardMaterial color="#f5d5a8" roughness={0.5} />
-            </mesh>
-            <mesh position={[0, 1.18, 0]}>
-              <sphereGeometry args={[0.26, 12, 8]} />
-              <meshStandardMaterial color={botColor} />
-            </mesh>
-            <mesh position={[0, 1.12, 0.12]} rotation={[0.3, 0, 0]}>
-              <cylinderGeometry args={[0.3, 0.28, 0.06, 12]} />
-              <meshStandardMaterial color={botColor} />
-            </mesh>
-            <mesh position={[-0.08, 1.02, 0.2]}>
-              <sphereGeometry args={[0.05, 8, 8]} />
-              <meshStandardMaterial color="#fff" />
-            </mesh>
-            <mesh position={[0.08, 1.02, 0.2]}>
-              <sphereGeometry args={[0.05, 8, 8]} />
-              <meshStandardMaterial color="#fff" />
-            </mesh>
-            <mesh position={[-0.08, 1.02, 0.24]}>
-              <sphereGeometry args={[0.025, 6, 6]} />
-              <meshStandardMaterial color="#222" />
-            </mesh>
-            <mesh position={[0.08, 1.02, 0.24]}>
-              <sphereGeometry args={[0.025, 6, 6]} />
-              <meshStandardMaterial color="#222" />
-            </mesh>
-            <mesh position={[-0.38, 0.55, 0]} rotation={[0, 0, 0.4]}>
-              <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
-              <meshStandardMaterial color={botColor} roughness={0.6} />
-            </mesh>
-            <mesh position={[0.38, 0.55, 0]} rotation={[0, 0, -0.4]}>
-              <capsuleGeometry args={[0.08, 0.3, 6, 8]} />
-              <meshStandardMaterial color={botColor} roughness={0.6} />
-            </mesh>
-            <mesh position={[-0.48, 0.38, 0]}>
-              <sphereGeometry args={[0.07, 8, 8]} />
-              <meshStandardMaterial color="#f5d5a8" />
-            </mesh>
-            <mesh position={[0.48, 0.38, 0]}>
-              <sphereGeometry args={[0.07, 8, 8]} />
-              <meshStandardMaterial color="#f5d5a8" />
-            </mesh>
-            <mesh position={[-0.12, 0.12, 0]}>
-              <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
-              <meshStandardMaterial color="#3a2a10" />
-            </mesh>
-            <mesh position={[0.12, 0.12, 0]}>
-              <capsuleGeometry args={[0.09, 0.18, 6, 8]} />
-              <meshStandardMaterial color="#3a2a10" />
-            </mesh>
-            <mesh position={[-0.12, 0.02, 0.04]}>
-              <boxGeometry args={[0.12, 0.06, 0.18]} />
-              <meshStandardMaterial color="#2a1a0a" />
-            </mesh>
-            <mesh position={[0.12, 0.02, 0.04]}>
-              <boxGeometry args={[0.12, 0.06, 0.18]} />
-              <meshStandardMaterial color="#2a1a0a" />
-            </mesh>
+            <PlayerCharacter color={botColor} />
             {config.mode === 'survival' && i === 0 && (
               <mesh position={[0, 1.4, 0]}>
                 <coneGeometry args={[0.17, 0.25, 4]} />
                 <meshStandardMaterial color="#ff2020" emissive="#ff0000" emissiveIntensity={0.6} />
               </mesh>
             )}
+          </group>
+        );
+      })}
+
+      {/* Remote Online Players */}
+      {config.isOnline && config.onlinePlayers?.map((op, i) => {
+        if (i === playerIdx) return null; // skip self
+        const pColor = PLAYER_COLORS[i] || '#888';
+        return (
+          <group
+            key={`remote-${op.sessionId}`}
+            ref={el => { remotePlayerGroupRefs.current.set(op.sessionId, el); }}
+            position={[bases[Math.min(i, bases.length - 1)]?.[0] || 0, 0, bases[Math.min(i, bases.length - 1)]?.[2] || 0]}
+          >
+            <PlayerCharacter color={pColor} />
           </group>
         );
       })}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GameConfig, GameMode, GameMapId, GAME_MODES, GAME_MAPS, DEFAULT_GAME_TIME } from '@/types/game';
+import { GameConfig, GameMode, GameMapId, GAME_MODES, GAME_MAPS, DEFAULT_GAME_TIME, OnlinePlayerInfo } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useOnlineRoom, TournamentRound } from '@/hooks/useOnlineRoom';
@@ -42,7 +42,18 @@ export default function MainMenu({ onStartGame, joinCode }: MainMenuProps) {
   // When game starts online
   useEffect(() => {
     if (room.gameStarted && room.gameConfig) {
-      onStartGame(room.gameConfig);
+      // For non-host players, set their playerIndex based on their session
+      const cfg = { ...room.gameConfig };
+      if (cfg.onlinePlayers) {
+        const myIdx = cfg.onlinePlayers.findIndex(p => p.sessionId === room.sessionId);
+        if (myIdx >= 0) {
+          cfg.playerIndex = myIdx;
+          cfg.playerName = cfg.onlinePlayers[myIdx].name;
+        }
+      }
+      cfg.isOnline = true;
+      cfg.supabaseRoomId = room.roomId || undefined;
+      onStartGame(cfg);
     }
   }, [room.gameStarted, room.gameConfig]);
 
@@ -71,6 +82,12 @@ export default function MainMenu({ onStartGame, joinCode }: MainMenuProps) {
 
   const handleStartOnlineGame = () => {
     const botSlots = Math.max(0, 4 - room.players.length);
+    const onlinePlayers = room.players.map((p, i) => ({
+      sessionId: p.session_id,
+      name: p.player_name,
+      index: i,
+    }));
+    const myIndex = room.players.findIndex(p => p.session_id === room.sessionId);
     const config: GameConfig = {
       mode: isTournament ? tournamentRounds[0].mode : selectedMode,
       roomCode: room.roomCode,
@@ -78,6 +95,10 @@ export default function MainMenu({ onStartGame, joinCode }: MainMenuProps) {
       maxTime: DEFAULT_GAME_TIME,
       botCount: botSlots,
       mapId: isTournament ? tournamentRounds[0].mapId : selectedMap,
+      playerIndex: myIndex >= 0 ? myIndex : 0,
+      onlinePlayers,
+      isOnline: true,
+      supabaseRoomId: room.roomId || undefined,
     };
     room.startGame(config, isTournament ? tournamentRounds : undefined);
   };
