@@ -83,9 +83,10 @@ function createBot(index: number, mode: string): BotState {
   };
 }
 
-function getBasesForMode(mode: string, botCount: number) {
+function getBasesForMode(mode: string, botCount: number, onlineCount: number = 0) {
   if (mode === 'teams') return TEAM_BASE_POSITIONS;
-  return BASE_POSITIONS.slice(0, botCount + 1);
+  const totalPlayers = Math.max(1, (onlineCount > 0 ? onlineCount : 1) + botCount);
+  return BASE_POSITIONS.slice(0, Math.min(totalPlayers, 4));
 }
 
 function getBotBaseIndex(botIndex: number, mode: string): number {
