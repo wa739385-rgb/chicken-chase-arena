@@ -389,10 +389,11 @@ function SceneContent({
   keysRef: React.RefObject<Set<string>>;
 }) {
   const { camera } = useThree();
-  const mapConfig = GAME_MAPS.find(m => m.id === config.mapId) || GAME_MAPS[0];
-  const bases = getBasesForMode(config.mode, config.botCount);
-  const playerBaseIdx = config.mode === 'teams' ? 0 : 0;
-  const playerPos = useRef({ x: bases[playerBaseIdx][0], z: bases[playerBaseIdx][2] });
+  const onlineCount = config.onlinePlayers?.length || 0;
+  const bases = getBasesForMode(config.mode, config.botCount, onlineCount);
+  const playerIdx = config.playerIndex || 0;
+  const playerBaseIdx = config.mode === 'teams' ? (playerIdx < 2 ? 0 : 1) : Math.min(playerIdx, bases.length - 1);
+  const playerPos = useRef({ x: bases[playerBaseIdx]?.[0] || 0, z: bases[playerBaseIdx]?.[2] || 0 });
   const playerAngle = useRef(0);
   const playerGroupRef = useRef<THREE.Group>(null);
   const chickensRef = useRef<ChickenState[]>(
@@ -402,10 +403,23 @@ function SceneContent({
     })
   );
   const chickenGroupRefs = useRef<(THREE.Group | null)[]>([]);
+
+  // Bots: only fill slots not taken by online players
+  // Bot indices start after online player slots
   const botsRef = useRef<BotState[]>(
-    Array.from({ length: config.botCount }, (_, i) => createBot(i, config.mode))
+    Array.from({ length: config.botCount }, (_, i) => {
+      const botSlotIdx = onlineCount + i; // bot occupies slot after online players
+      return createBot(botSlotIdx > 0 ? botSlotIdx - 1 : i, config.mode);
+    })
   );
   const botGroupRefs = useRef<(THREE.Group | null)[]>([]);
+
+  // Remote online players state
+  const remotePlayersRef = useRef<Map<string, RemotePlayerState>>(new Map());
+  const remotePlayerGroupRefs = useRef<Map<string, THREE.Group | null>>(new Map());
+  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const broadcastTimer = useRef(0);
+
   const localScore = useRef(0);
   const localCarriedIdx = useRef(-1);
   const speedMult = useRef(1);
@@ -432,6 +446,45 @@ function SceneContent({
   const nightDarknessTimer = useRef(0);
   const playerFloatY = useRef(0); // space floating
 
+  // ── Online broadcast setup ──
+  useEffect(() => {
+    if (!config.isOnline || !config.supabaseRoomId) return;
+    
+    const channel = supabase.channel(`game:${config.supabaseRoomId}`, {
+      config: { broadcast: { self: false } },
+    });
+
+    channel.on('broadcast', { event: 'player_pos' }, (payload) => {
+      const data = payload.payload as {
+        sessionId: string;
+        x: number;
+        z: number;
+        angle: number;
+        score: number;
+        carrying: boolean;
+      };
+      // Don't update self
+      const mySession = config.onlinePlayers?.find((_, i) => i === playerIdx)?.sessionId;
+      if (data.sessionId === mySession) return;
+      
+      remotePlayersRef.current.set(data.sessionId, {
+        x: data.x,
+        z: data.z,
+        angle: data.angle,
+        score: data.score,
+        carrying: data.carrying,
+      });
+    });
+
+    channel.subscribe();
+    broadcastChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      broadcastChannelRef.current = null;
+    };
+  }, [config.isOnline, config.supabaseRoomId]);
+
   // Assign random ability
   useEffect(() => {
     const abilities: AbilityType[] = ['speed', 'magnet', 'invisible', 'freeze'];
@@ -439,7 +492,6 @@ function SceneContent({
   }, []);
 
   useEffect(() => {
-    // Camera closer so players can see walls
     camera.position.set(0, 22, 14);
     camera.lookAt(0, 0, 0);
   }, [camera]);
