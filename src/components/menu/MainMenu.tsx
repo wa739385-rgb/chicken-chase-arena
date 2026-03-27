@@ -42,7 +42,18 @@ export default function MainMenu({ onStartGame, joinCode }: MainMenuProps) {
   // When game starts online
   useEffect(() => {
     if (room.gameStarted && room.gameConfig) {
-      onStartGame(room.gameConfig);
+      // For non-host players, set their playerIndex based on their session
+      const cfg = { ...room.gameConfig };
+      if (cfg.onlinePlayers) {
+        const myIdx = cfg.onlinePlayers.findIndex(p => p.sessionId === room.sessionId);
+        if (myIdx >= 0) {
+          cfg.playerIndex = myIdx;
+          cfg.playerName = cfg.onlinePlayers[myIdx].name;
+        }
+      }
+      cfg.isOnline = true;
+      cfg.supabaseRoomId = room.roomId || undefined;
+      onStartGame(cfg);
     }
   }, [room.gameStarted, room.gameConfig]);
 
