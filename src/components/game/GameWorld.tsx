@@ -12,6 +12,16 @@ import {
 } from '@/types/game';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import GameHUD from './GameHUD';
+import { supabase } from '@/integrations/supabase/client';
+
+// ─── Online player position state ───
+interface RemotePlayerState {
+  x: number;
+  z: number;
+  angle: number;
+  score: number;
+  carrying: boolean;
+}
 
 // ─── Internal Types ───
 interface ChickenState {
