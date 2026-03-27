@@ -389,6 +389,7 @@ function SceneContent({
   keysRef: React.RefObject<Set<string>>;
 }) {
   const { camera } = useThree();
+  const mapConfig = GAME_MAPS.find(m => m.id === config.mapId) || GAME_MAPS[0];
   const onlineCount = config.onlinePlayers?.length || 0;
   const bases = getBasesForMode(config.mode, config.botCount, onlineCount);
   const playerIdx = config.playerIndex || 0;
