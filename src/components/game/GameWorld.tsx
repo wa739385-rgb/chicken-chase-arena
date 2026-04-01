@@ -469,11 +469,13 @@ function SceneContent({
   onHudUpdate,
   gameOver,
   keysRef,
+  touchDir,
 }: {
   config: GameConfig;
   onHudUpdate: (data: HudData) => void;
   gameOver: boolean;
   keysRef: React.RefObject<Set<string>>;
+  touchDir: React.RefObject<{ dx: number; dz: number }>;
 }) {
   const { camera } = useThree();
   const mapConfig = GAME_MAPS.find(m => m.id === config.mapId) || GAME_MAPS[0];
