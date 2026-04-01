@@ -1501,11 +1501,22 @@ export default function GameWorld({
   onGameEnd: (scores: PlayerScore[]) => void;
 }) {
   const keysRef = useKeyboard();
+  const isMobile = useIsMobile();
+  const { touchDir, onJoystickMove } = useTouchInput();
   const [hudData, setHudData] = useState<HudData>({
     scores: [], localCarried: 0, modeInfo: '',
   });
   const [timeLeft, setTimeLeft] = useState(config.maxTime);
   const [gameOver, setGameOver] = useState(false);
+
+  // Embed: post scores to parent window
+  useEffect(() => {
+    if (gameOver && hudData.scores.length > 0) {
+      try {
+        window.parent.postMessage({ type: 'game_over', scores: hudData.scores }, '*');
+      } catch (_) {}
+    }
+  }, [gameOver, hudData.scores]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1531,8 +1542,19 @@ export default function GameWorld({
     onGameEnd(hudData.scores);
   }, [hudData.scores, onGameEnd]);
 
+  // Listen for embed messages from parent
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'game_ping') {
+        window.parent.postMessage({ type: 'game_pong', status: gameOver ? 'over' : 'playing' }, '*');
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [gameOver]);
+
   return (
-    <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a' }}>
+    <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a', touchAction: 'none' }}>
       <Canvas
         shadows
         camera={{ position: [0, 22, 14], fov: 50, near: 0.1, far: 120 }}
@@ -1543,9 +1565,13 @@ export default function GameWorld({
           onHudUpdate={setHudData}
           gameOver={gameOver}
           keysRef={keysRef}
+          touchDir={touchDir}
         />
       </Canvas>
       <GameHUD hudData={hudData} timeLeft={timeLeft} mode={config.mode} gameOver={gameOver} />
+      {isMobile && !gameOver && (
+        <TouchJoystick onMove={onJoystickMove} />
+      )}
       <button
         onClick={handleBack}
         className="absolute top-4 left-4 bg-foreground/70 text-primary-foreground p-2 rounded-lg hover:bg-foreground/90 transition-colors z-10"
