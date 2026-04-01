@@ -84,7 +84,7 @@ export default function GameHUD({ hudData, timeLeft, mode, gameOver }: GameHUDPr
       </div>
 
       {/* Controls */}
-      <div className="absolute bottom-3 right-3 hidden md:block">
+      <div className="absolute bottom-3 right-3">
         <div className="bg-card/50 text-muted-foreground px-3 py-1 rounded-lg text-xs">
           ⌨️ WASD / الأسهم
         </div>

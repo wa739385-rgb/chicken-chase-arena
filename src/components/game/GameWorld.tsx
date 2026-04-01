@@ -11,11 +11,8 @@ import {
   CHALLENGES, ChickenType, GAME_MAPS,
 } from '@/types/game';
 import { useKeyboard } from '@/hooks/useKeyboard';
-import { useTouchInput } from '@/hooks/useTouchInput';
 import GameHUD from './GameHUD';
-import TouchJoystick from './TouchJoystick';
 import { supabase } from '@/integrations/supabase/client';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 // ─── Online player position state ───
 interface RemotePlayerState {
@@ -469,13 +466,11 @@ function SceneContent({
   onHudUpdate,
   gameOver,
   keysRef,
-  touchDir,
 }: {
   config: GameConfig;
   onHudUpdate: (data: HudData) => void;
   gameOver: boolean;
   keysRef: React.RefObject<Set<string>>;
-  touchDir: React.RefObject<{ dx: number; dz: number }>;
 }) {
   const { camera } = useThree();
   const mapConfig = GAME_MAPS.find(m => m.id === config.mapId) || GAME_MAPS[0];
@@ -673,37 +668,22 @@ function SceneContent({
       playerFloatY.current = Math.sin(Date.now() * 0.002) * 0.3 + 0.3;
     }
 
-    // ── Player Movement (smooth) ──
+    // ── Player Movement ──
     const isFrozenByMap = playerFrozen.current;
     const speed = PLAYER_SPEED * speedMult.current * mapSpeedMult * delta;
     let dx = 0, dz = 0;
     if (!isFrozenByMap) {
-      // Keyboard input
       if (keys.has('w') || keys.has('arrowup')) dz -= 1;
       if (keys.has('s') || keys.has('arrowdown')) dz += 1;
       if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
       if (keys.has('d') || keys.has('arrowright')) dx += 1;
-      // Touch joystick input (overrides if active)
-      const td = touchDir.current;
-      if (td && (Math.abs(td.dx) > 0.1 || Math.abs(td.dz) > 0.1)) {
-        dx = td.dx;
-        dz = td.dz;
-      }
     }
-    const moved = Math.abs(dx) > 0.05 || Math.abs(dz) > 0.05;
+    const moved = dx !== 0 || dz !== 0;
     if (moved) {
       const len = Math.sqrt(dx * dx + dz * dz);
-      const ndx = dx / len;
-      const ndz = dz / len;
-      pos.x += ndx * speed;
-      pos.z += ndz * speed;
-      // Smooth rotation - interpolate angle
-      const targetAngle = Math.atan2(ndx, ndz);
-      let angleDiff = targetAngle - playerAngle.current;
-      // Normalize angle difference to -PI..PI
-      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-      playerAngle.current += angleDiff * Math.min(1, delta * 12);
+      pos.x += (dx / len) * speed;
+      pos.z += (dz / len) * speed;
+      playerAngle.current = Math.atan2(dx, dz);
       walkCycle.current += delta * 12;
     }
     pos.x = Math.max(-MAP_EXTENT, Math.min(MAP_EXTENT, pos.x));
@@ -1501,22 +1481,11 @@ export default function GameWorld({
   onGameEnd: (scores: PlayerScore[]) => void;
 }) {
   const keysRef = useKeyboard();
-  const isMobile = useIsMobile();
-  const { touchDir, onJoystickMove } = useTouchInput();
   const [hudData, setHudData] = useState<HudData>({
     scores: [], localCarried: 0, modeInfo: '',
   });
   const [timeLeft, setTimeLeft] = useState(config.maxTime);
   const [gameOver, setGameOver] = useState(false);
-
-  // Embed: post scores to parent window
-  useEffect(() => {
-    if (gameOver && hudData.scores.length > 0) {
-      try {
-        window.parent.postMessage({ type: 'game_over', scores: hudData.scores }, '*');
-      } catch (_) {}
-    }
-  }, [gameOver, hudData.scores]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1542,19 +1511,8 @@ export default function GameWorld({
     onGameEnd(hudData.scores);
   }, [hudData.scores, onGameEnd]);
 
-  // Listen for embed messages from parent
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'game_ping') {
-        window.parent.postMessage({ type: 'game_pong', status: gameOver ? 'over' : 'playing' }, '*');
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, [gameOver]);
-
   return (
-    <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a', touchAction: 'none' }}>
+    <div className="relative w-full h-screen overflow-hidden" style={{ background: '#2a2a2a' }}>
       <Canvas
         shadows
         camera={{ position: [0, 22, 14], fov: 50, near: 0.1, far: 120 }}
@@ -1565,13 +1523,9 @@ export default function GameWorld({
           onHudUpdate={setHudData}
           gameOver={gameOver}
           keysRef={keysRef}
-          touchDir={touchDir}
         />
       </Canvas>
       <GameHUD hudData={hudData} timeLeft={timeLeft} mode={config.mode} gameOver={gameOver} />
-      {isMobile && !gameOver && (
-        <TouchJoystick onMove={onJoystickMove} />
-      )}
       <button
         onClick={handleBack}
         className="absolute top-4 left-4 bg-foreground/70 text-primary-foreground p-2 rounded-lg hover:bg-foreground/90 transition-colors z-10"
