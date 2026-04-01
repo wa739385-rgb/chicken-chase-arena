@@ -11,8 +11,11 @@ import {
   CHALLENGES, ChickenType, GAME_MAPS,
 } from '@/types/game';
 import { useKeyboard } from '@/hooks/useKeyboard';
+import { useTouchInput } from '@/hooks/useTouchInput';
 import GameHUD from './GameHUD';
+import TouchJoystick from './TouchJoystick';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // ─── Online player position state ───
 interface RemotePlayerState {
