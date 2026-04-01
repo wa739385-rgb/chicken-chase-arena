@@ -673,22 +673,37 @@ function SceneContent({
       playerFloatY.current = Math.sin(Date.now() * 0.002) * 0.3 + 0.3;
     }
 
-    // ── Player Movement ──
+    // ── Player Movement (smooth) ──
     const isFrozenByMap = playerFrozen.current;
     const speed = PLAYER_SPEED * speedMult.current * mapSpeedMult * delta;
     let dx = 0, dz = 0;
     if (!isFrozenByMap) {
+      // Keyboard input
       if (keys.has('w') || keys.has('arrowup')) dz -= 1;
       if (keys.has('s') || keys.has('arrowdown')) dz += 1;
       if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
       if (keys.has('d') || keys.has('arrowright')) dx += 1;
+      // Touch joystick input (overrides if active)
+      const td = touchDir.current;
+      if (td && (Math.abs(td.dx) > 0.1 || Math.abs(td.dz) > 0.1)) {
+        dx = td.dx;
+        dz = td.dz;
+      }
     }
-    const moved = dx !== 0 || dz !== 0;
+    const moved = Math.abs(dx) > 0.05 || Math.abs(dz) > 0.05;
     if (moved) {
       const len = Math.sqrt(dx * dx + dz * dz);
-      pos.x += (dx / len) * speed;
-      pos.z += (dz / len) * speed;
-      playerAngle.current = Math.atan2(dx, dz);
+      const ndx = dx / len;
+      const ndz = dz / len;
+      pos.x += ndx * speed;
+      pos.z += ndz * speed;
+      // Smooth rotation - interpolate angle
+      const targetAngle = Math.atan2(ndx, ndz);
+      let angleDiff = targetAngle - playerAngle.current;
+      // Normalize angle difference to -PI..PI
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      playerAngle.current += angleDiff * Math.min(1, delta * 12);
       walkCycle.current += delta * 12;
     }
     pos.x = Math.max(-MAP_EXTENT, Math.min(MAP_EXTENT, pos.x));
