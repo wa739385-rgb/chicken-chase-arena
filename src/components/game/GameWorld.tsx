@@ -1424,83 +1424,20 @@ function SceneContent({
         </group>
       )}
 
-      {/* Space: Stars background + Earth */}
-      {config.mapId === 'space' && (
-        <>
-          {/* Stars - scattered points */}
-          {Array.from({ length: 200 }, (_, i) => {
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(2 * ((i * 0.618 + 0.3) % 1) - 1);
-            const r = 45 + (i % 5) * 3;
-            const sx = r * Math.sin(phi) * Math.cos(theta + i * 0.1);
-            const sy = r * Math.sin(phi) * Math.sin(theta + i * 0.1) + 10;
-            const sz = r * Math.cos(phi + i * 0.05);
-            const starSize = 0.05 + (i % 4) * 0.03;
-            return (
-              <mesh key={`star-${i}`} position={[sx, Math.abs(sy), sz]}>
-                <sphereGeometry args={[starSize, 4, 4]} />
-                <meshBasicMaterial color={i % 7 === 0 ? '#aaccff' : i % 11 === 0 ? '#ffccaa' : '#ffffff'} />
-              </mesh>
-            );
-          })}
-          {/* Earth */}
-          <group position={[25, 30, -20]}>
-            <mesh>
-              <sphereGeometry args={[8, 24, 24]} />
-              <meshStandardMaterial color="#2266aa" roughness={0.7} />
-            </mesh>
-            {/* Continents */}
-            <mesh position={[0, 0, 0.1]} scale={[1.01, 1.01, 1.01]}>
-              <sphereGeometry args={[8, 24, 24]} />
-              <meshStandardMaterial color="#2266aa" roughness={0.6} transparent opacity={0.9} />
-            </mesh>
-            {/* Green patches as continents */}
-            {[
-              [3, 4, 6], [-2, 5, 5.5], [5, -2, 5], [-4, -3, 5.5], [1, 6, 4.5],
-            ].map(([cx, cy, cz], i) => (
-              <mesh key={`cont-${i}`} position={[cx, cy, cz]}>
-                <sphereGeometry args={[2.5 - i * 0.3, 8, 8]} />
-                <meshStandardMaterial color="#338844" roughness={0.8} />
-              </mesh>
-            ))}
-            {/* Clouds */}
-            <mesh scale={[1.03, 1.03, 1.03]}>
-              <sphereGeometry args={[8, 16, 16]} />
-              <meshStandardMaterial color="#ffffff" transparent opacity={0.15} />
-            </mesh>
-            {/* Atmosphere glow */}
-            <mesh scale={[1.08, 1.08, 1.08]}>
-              <sphereGeometry args={[8, 16, 16]} />
-              <meshBasicMaterial color="#4488ff" transparent opacity={0.1} />
-            </mesh>
-          </group>
-        </>
-      )}
-
       {/* Bases */}
-      {bases.map((p, i) => {
-        // In teams mode, use team colors (red for team 0, blue for team 1)
-        const baseColor = config.mode === 'teams'
-          ? (i === 0 ? '#e74c3c' : '#3498db')
-          : PLAYER_COLORS[i];
-        return <BaseZone key={i} position={p} color={baseColor} depositedCount={depositedCounts.current[i]} />;
-      })}
+      {bases.map((p, i) => (
+        <BaseZone key={i} position={p} color={PLAYER_COLORS[i]} depositedCount={depositedCounts.current[i]} />
+      ))}
 
       {/* Local Player */}
       <group ref={playerGroupRef}>
-        <PlayerCharacter color={
-          config.mode === 'teams'
-            ? (playerBaseIdx === 0 ? '#e74c3c' : '#3498db')
-            : PLAYER_COLORS[playerIdx] || PLAYER_COLORS[0]
-        } />
+        <PlayerCharacter color={PLAYER_COLORS[playerIdx] || PLAYER_COLORS[0]} />
       </group>
 
       {/* Bot Players */}
       {botsRef.current.map((bot, i) => {
-        const botBase = getBotBaseIndex(i, config.mode);
-        const botColor = config.mode === 'teams'
-          ? (botBase === 0 ? '#e74c3c' : '#3498db')
-          : PLAYER_COLORS[(onlineCount > 0 ? onlineCount + i : i + 1)] || '#888';
+        const botDisplayIdx = onlineCount > 0 ? onlineCount + i : i + 1;
+        const botColor = PLAYER_COLORS[botDisplayIdx] || '#888';
         return (
           <group key={`botG-${i}`} ref={el => { botGroupRefs.current[i] = el; }} position={[bot.x, 0, bot.z]}>
             <PlayerCharacter color={botColor} />
