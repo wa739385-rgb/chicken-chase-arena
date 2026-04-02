@@ -47,6 +47,7 @@ interface BotState {
   frozen: boolean;
   frozenTimer: number;
   facingAngle: number;
+  baseIdx: number;
 }
 
 interface LuckBox {
@@ -75,14 +76,12 @@ function createChicken(type: ChickenType = 'normal'): ChickenState {
     deposited: false, depositedBase: -1,
   };
 }
-function createBot(index: number, mode: string): BotState {
-  const bases = mode === 'teams' ? TEAM_BASE_POSITIONS : BASE_POSITIONS;
-  const baseIdx = mode === 'teams' ? (index < 1 ? 0 : 1) : Math.min(index + 1, bases.length - 1);
-  const base = bases[baseIdx];
+function createBot(baseIdx: number, bases: [number, number, number][]): BotState {
+  const base = bases[Math.min(baseIdx, bases.length - 1)];
   return {
     x: base[0] + (Math.random() - 0.5) * 2, z: base[2] + (Math.random() - 0.5) * 2,
     carryingChickenIdx: -1, score: 0,
-    frozen: false, frozenTimer: 0, facingAngle: 0,
+    frozen: false, frozenTimer: 0, facingAngle: 0, baseIdx,
   };
 }
 
@@ -92,10 +91,6 @@ function getBasesForMode(mode: string, botCount: number, onlineCount: number = 0
   return BASE_POSITIONS.slice(0, Math.min(totalPlayers, 4));
 }
 
-function getBotBaseIndex(botIndex: number, mode: string): number {
-  if (mode === 'teams') return botIndex < 1 ? 0 : 1;
-  return botIndex + 1;
-}
 
 // ─── Reusable Player Character with Walking Animation ───
 function PlayerCharacter({ color }: { color: string }) {
@@ -549,8 +544,16 @@ function SceneContent({
   // Bot indices start after online player slots
   const botsRef = useRef<BotState[]>(
     Array.from({ length: config.botCount }, (_, i) => {
-      const botSlotIdx = onlineCount + i; // bot occupies slot after online players
-      return createBot(botSlotIdx > 0 ? botSlotIdx - 1 : i, config.mode);
+      let botBaseIdx: number;
+      if (config.mode === 'teams') {
+        // Player is at team base playerBaseIdx, put 1 bot with player, rest on other team
+        botBaseIdx = i < 1 ? playerBaseIdx : (1 - playerBaseIdx);
+      } else {
+        // Each bot gets its own base slot (1, 2, 3...) since player is at playerBaseIdx
+        const usedSlots = [0, 1, 2, 3].filter(s => s !== playerBaseIdx);
+        botBaseIdx = usedSlots[i] ?? usedSlots[usedSlots.length - 1];
+      }
+      return createBot(botBaseIdx, bases);
     })
   );
   const botGroupRefs = useRef<(THREE.Group | null)[]>([]);
@@ -780,7 +783,7 @@ function SceneContent({
       bots.forEach((bot, bi) => {
         const bd = Math.sqrt(bot.x * bot.x + bot.z * bot.z);
         if (bd < 2.5) {
-          const botBase = getBotBaseIndex(bi, config.mode);
+          const botBase = bots[bi].baseIdx;
           const base = bases[botBase];
           if (base) {
             bot.x = base[0]; bot.z = base[2];
@@ -1007,7 +1010,7 @@ function SceneContent({
     // ── Theft Mode ──
     if (config.mode === 'theft' && stealCooldown.current <= 0 && localCarriedIdx.current < 0) {
       for (let bi = 0; bi < bots.length; bi++) {
-        const botBase = getBotBaseIndex(bi, config.mode);
+        const botBase = bots[bi].baseIdx;
         const base = bases[botBase];
         if (!base) continue;
         if (dist2(pos.x, pos.z, base[0], base[2]) < BASE_DEPOSIT_DIST && bots[bi].score > 0) {
@@ -1041,7 +1044,7 @@ function SceneContent({
       }
 
       const botSpeed = PLAYER_SPEED * 0.55 * delta;
-      const botBase = getBotBaseIndex(bi, config.mode);
+      const botBase = bots[bi].baseIdx;
 
       // Survival mode: bot 0 is hunter - chase NEAREST player (not just local)
       if (config.mode === 'survival' && bi === 0) {
