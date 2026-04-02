@@ -125,7 +125,7 @@ export const PLAYER_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f'];
 export const PLAYER_NAMES_AR = ['أحمر', 'أزرق', 'أخضر', 'ذهبي'];
 
 export const TEAM_BASE_POSITIONS: [number, number, number][] = [
-  [-11, 0, -11], [11, 0, -11],
+  [-11, 0, -11], [11, 0, 11],
 ];
 
 export const BASE_POSITIONS: [number, number, number][] = [
@@ -137,7 +137,7 @@ export const MAP_EXTENT = 16;
 export const BASE_SIZE = 4;
 export const CHICKEN_CATCH_DIST = 1.4;
 export const BASE_DEPOSIT_DIST = 3.5;
-export const DEFAULT_GAME_TIME = 120;
+export const DEFAULT_GAME_TIME = 60;
 export const MAX_CHICKENS = 20;
 export const PLAYER_SPEED = 7;
 export const CHICKEN_SPEED_NORMAL = 1.5;
