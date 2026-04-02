@@ -47,6 +47,7 @@ interface BotState {
   frozen: boolean;
   frozenTimer: number;
   facingAngle: number;
+  baseIdx: number;
 }
 
 interface LuckBox {
