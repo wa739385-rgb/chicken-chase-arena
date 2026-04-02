@@ -91,10 +91,6 @@ function getBasesForMode(mode: string, botCount: number, onlineCount: number = 0
   return BASE_POSITIONS.slice(0, Math.min(totalPlayers, 4));
 }
 
-function getBotBaseIndex(botIndex: number, mode: string): number {
-  if (mode === 'teams') return botIndex < 1 ? 0 : 1;
-  return botIndex + 1;
-}
 
 // ─── Reusable Player Character with Walking Animation ───
 function PlayerCharacter({ color }: { color: string }) {
