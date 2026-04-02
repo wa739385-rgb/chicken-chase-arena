@@ -125,7 +125,7 @@ export const PLAYER_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f'];
 export const PLAYER_NAMES_AR = ['أحمر', 'أزرق', 'أخضر', 'ذهبي'];
 
 export const TEAM_BASE_POSITIONS: [number, number, number][] = [
-  [-11, 0, -11], [11, 0, -11],
+  [-11, 0, -11], [11, 0, 11],
 ];
 
 export const BASE_POSITIONS: [number, number, number][] = [
