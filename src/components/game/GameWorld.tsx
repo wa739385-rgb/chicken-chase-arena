@@ -81,7 +81,7 @@ function createBot(baseIdx: number, bases: [number, number, number][]): BotState
   return {
     x: base[0] + (Math.random() - 0.5) * 2, z: base[2] + (Math.random() - 0.5) * 2,
     carryingChickenIdx: -1, score: 0,
-    frozen: false, frozenTimer: 0, facingAngle: 0,
+    frozen: false, frozenTimer: 0, facingAngle: 0, baseIdx,
   };
 }
 
