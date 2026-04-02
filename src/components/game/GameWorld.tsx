@@ -547,8 +547,16 @@ function SceneContent({
   // Bot indices start after online player slots
   const botsRef = useRef<BotState[]>(
     Array.from({ length: config.botCount }, (_, i) => {
-      const botSlotIdx = onlineCount + i; // bot occupies slot after online players
-      return createBot(botSlotIdx > 0 ? botSlotIdx - 1 : i, config.mode);
+      let botBaseIdx: number;
+      if (config.mode === 'teams') {
+        // Player is at team base playerBaseIdx, put 1 bot with player, rest on other team
+        botBaseIdx = i < 1 ? playerBaseIdx : (1 - playerBaseIdx);
+      } else {
+        // Each bot gets its own base slot (1, 2, 3...) since player is at playerBaseIdx
+        const usedSlots = [0, 1, 2, 3].filter(s => s !== playerBaseIdx);
+        botBaseIdx = usedSlots[i] ?? usedSlots[usedSlots.length - 1];
+      }
+      return createBot(botBaseIdx, bases);
     })
   );
   const botGroupRefs = useRef<(THREE.Group | null)[]>([]);
