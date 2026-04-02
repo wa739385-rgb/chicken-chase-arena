@@ -77,7 +77,7 @@ function createChicken(type: ChickenType = 'normal'): ChickenState {
 }
 function createBot(index: number, mode: string): BotState {
   const bases = mode === 'teams' ? TEAM_BASE_POSITIONS : BASE_POSITIONS;
-  const baseIdx = mode === 'teams' ? (index < 2 ? 0 : 1) : Math.min(index + 1, bases.length - 1);
+  const baseIdx = mode === 'teams' ? (index < 1 ? 0 : 1) : Math.min(index + 1, bases.length - 1);
   const base = bases[baseIdx];
   return {
     x: base[0] + (Math.random() - 0.5) * 2, z: base[2] + (Math.random() - 0.5) * 2,
