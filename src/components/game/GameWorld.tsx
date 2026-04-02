@@ -787,7 +787,7 @@ function SceneContent({
       bots.forEach((bot, bi) => {
         const bd = Math.sqrt(bot.x * bot.x + bot.z * bot.z);
         if (bd < 2.5) {
-          const botBase = getBotBaseIndex(bi, config.mode);
+          const botBase = bots[bi].baseIdx;
           const base = bases[botBase];
           if (base) {
             bot.x = base[0]; bot.z = base[2];
@@ -1014,7 +1014,7 @@ function SceneContent({
     // ── Theft Mode ──
     if (config.mode === 'theft' && stealCooldown.current <= 0 && localCarriedIdx.current < 0) {
       for (let bi = 0; bi < bots.length; bi++) {
-        const botBase = getBotBaseIndex(bi, config.mode);
+        const botBase = bots[bi].baseIdx;
         const base = bases[botBase];
         if (!base) continue;
         if (dist2(pos.x, pos.z, base[0], base[2]) < BASE_DEPOSIT_DIST && bots[bi].score > 0) {
@@ -1048,7 +1048,7 @@ function SceneContent({
       }
 
       const botSpeed = PLAYER_SPEED * 0.55 * delta;
-      const botBase = getBotBaseIndex(bi, config.mode);
+      const botBase = bots[bi].baseIdx;
 
       // Survival mode: bot 0 is hunter - chase NEAREST player (not just local)
       if (config.mode === 'survival' && bi === 0) {
